@@ -2,6 +2,10 @@
 
 Fortune AI is a premium divination consultation web app built with Next.js and TypeScript.
 
+## Versioning
+
+Project version control rules are documented in `VERSIONING.md`.
+
 ## Scripts
 
 - `npm install`
