@@ -1,0 +1,7 @@
+.next
+node_modules
+coverage
+.DS_Store
+.env.local
+data/runtime
+uploads

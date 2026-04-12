@@ -1,0 +1,716 @@
+.page {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 16px 28px;
+}
+
+.backgroundGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 12%, rgba(214, 176, 111, 0.12), transparent 26%),
+    radial-gradient(circle at 82% 16%, rgba(69, 112, 92, 0.12), transparent 22%);
+  pointer-events: none;
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin: 10px auto 0;
+}
+
+.layoutSingle {
+  display: block;
+}
+
+.layoutChat {
+  display: block;
+}
+
+.intakeCard,
+.chatCard,
+.footerNote {
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  border-radius: 20px;
+  background: rgba(18, 16, 15, 0.76);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.14);
+}
+
+.intakeCard,
+.chatCard {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.chatStage {
+  display: grid;
+  gap: 8px;
+}
+
+.cardHeader {
+  margin-bottom: 10px;
+}
+
+.paymentHeader {
+  margin-bottom: 14px;
+}
+
+.cardHeaderTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  color: var(--accent-gold);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.cardHeader h2,
+.paymentHeader h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.35rem, 1.8vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.06;
+}
+
+.cardHeader p,
+.paymentHeader p,
+.footerNote,
+.assistantBubble p,
+.userBubble p,
+.assetSummary,
+.paymentPlanCard p,
+.paymentPlanCardActive p,
+.paymentMethodCard p,
+.paymentMethodCardActive p,
+.paymentAccountBox p {
+  color: var(--muted-text);
+  line-height: 1.65;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.preferenceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.preferenceCard,
+.preferenceCardActive {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 16px;
+  padding: 12px;
+  text-align: left;
+}
+
+.preferenceCard {
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  background: rgba(255, 247, 238, 0.03);
+  color: var(--cream);
+}
+
+.preferenceCardActive {
+  border: 1px solid rgba(214, 176, 111, 0.28);
+  background: rgba(214, 176, 111, 0.08);
+  color: var(--cream);
+}
+
+.preferenceCard strong,
+.preferenceCardActive strong,
+.boxTitle {
+  font-family: var(--font-display), serif;
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.preferenceCard span,
+.preferenceCardActive span {
+  color: var(--muted-text);
+  line-height: 1.65;
+}
+
+.intakeCard label,
+.registrationBox label,
+.modalCard label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(247, 239, 227, 0.88);
+  font-size: 0.84rem;
+}
+
+.fullWidth {
+  display: block;
+  margin-top: 10px;
+}
+
+.calendarSwitch {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.calendarToggle,
+.calendarToggleActive {
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 12px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.calendarToggle {
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  background: rgba(255, 247, 238, 0.04);
+  color: rgba(247, 239, 227, 0.82);
+}
+
+.calendarToggleActive {
+  border: 1px solid rgba(214, 176, 111, 0.28);
+  background: rgba(214, 176, 111, 0.12);
+  color: var(--cream);
+}
+
+.birthDateRow {
+  display: grid;
+  gap: 6px;
+}
+
+.dateFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fieldHint {
+  grid-column: 1 / -1;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.intakeCard input,
+.intakeCard select,
+.modalCard input,
+.modalCard select,
+.chatTools textarea {
+  width: 100%;
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 247, 238, 0.04);
+  color: var(--cream);
+  font: inherit;
+  padding: 10px 12px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.intakeCard input:focus,
+.intakeCard select:focus,
+.modalCard input:focus,
+.modalCard select:focus,
+.chatTools textarea:focus {
+  border-color: rgba(214, 176, 111, 0.56);
+  background: rgba(255, 247, 238, 0.07);
+  transform: translateY(-1px);
+}
+
+.registrationBox {
+  margin-top: 12px;
+  border-radius: 16px;
+  background: rgba(255, 247, 238, 0.03);
+  padding: 14px;
+}
+
+.loggedInBox {
+  margin-bottom: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(214, 176, 111, 0.24);
+  background: rgba(214, 176, 111, 0.08);
+  padding: 12px 14px;
+}
+
+.loggedInBox strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display), serif;
+  font-size: 0.96rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.loggedInBox span {
+  color: var(--muted-text);
+  line-height: 1.65;
+}
+
+.accountBanner,
+.guestBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.accountBanner {
+  border: 1px solid rgba(214, 176, 111, 0.22);
+  background: rgba(214, 176, 111, 0.08);
+}
+
+.guestBanner {
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  background: rgba(255, 247, 238, 0.04);
+}
+
+.accountBanner strong,
+.guestBanner strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display), serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.accountBanner p,
+.guestBanner p {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.65;
+}
+
+.boxTitle {
+  margin-bottom: 12px;
+  color: var(--cream);
+}
+
+.primaryButton,
+.secondaryButton,
+.inlineEditButton,
+.inlinePayButton,
+.inlineUploadButton {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.primaryButton,
+.secondaryButton {
+  width: 100%;
+  border-radius: 16px;
+  padding: 13px 16px;
+  font-weight: 600;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.primaryButton {
+  margin-top: 6px;
+  background: linear-gradient(135deg, #d6b06f, #8b2d22);
+  color: #130f0d;
+}
+
+.secondaryButton {
+  background: rgba(255, 247, 238, 0.08);
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  color: var(--cream);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.inlineEditButton:hover,
+.inlinePayButton:hover,
+.inlineUploadButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.inlineUploadButton:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.inlineEditButton,
+.inlinePayButton {
+  border-radius: 999px;
+  background: rgba(255, 247, 238, 0.06);
+  border: 1px solid rgba(244, 226, 198, 0.14);
+  color: var(--cream);
+  padding: 8px 13px;
+}
+
+.inlinePayButton {
+  border-color: rgba(214, 176, 111, 0.28);
+  background: rgba(214, 176, 111, 0.12);
+}
+
+.transcript {
+  height: min(36vh, 296px);
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+  align-content: start;
+  scrollbar-width: thin;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: rgba(255, 247, 238, 0.04);
+  padding: 8px 10px;
+  color: rgba(247, 239, 227, 0.78);
+  font-size: 0.82rem;
+}
+
+.assistantBubble,
+.userBubble {
+  border-radius: 16px;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.assistantBubble {
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  background: rgba(255, 247, 238, 0.04);
+}
+
+.userBubble {
+  margin-left: auto;
+  max-width: 84%;
+  border: 1px solid rgba(69, 112, 92, 0.24);
+  background: rgba(69, 112, 92, 0.18);
+}
+
+.assistantBubble strong,
+.userBubble strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display), serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.chatTools {
+  border-top: 1px solid rgba(244, 226, 198, 0.1);
+  padding-top: 12px;
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 247, 238, 0.05);
+  padding: 6px 8px;
+}
+
+.attachButton {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(255, 247, 238, 0.07);
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  color: var(--cream);
+  cursor: pointer;
+}
+
+.attachButtonBusy {
+  opacity: 0.7;
+}
+
+.attachButton input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.attachIcon,
+.sendIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.attachIcon path,
+.sendIcon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.composerInput {
+  min-height: 38px !important;
+  max-height: 100px;
+  border: none !important;
+  background: transparent !important;
+  padding: 8px 4px !important;
+  resize: none;
+  box-shadow: none;
+  transform: none !important;
+}
+
+.composerInput:focus {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none;
+  transform: none !important;
+}
+
+.sendButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #efe5d8, #d6b06f);
+  color: #1b130f;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.sendButton:hover {
+  transform: translateY(-1px);
+}
+
+.sendButton:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.assetSummary {
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.error {
+  margin-top: 12px;
+  color: #ffb3a6;
+}
+
+.footerNote {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin: 10px auto 0;
+  padding: 12px 16px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 7, 6, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+}
+
+.modalCard {
+  width: min(760px, 100%);
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  border-radius: 24px;
+  background: rgba(18, 16, 15, 0.94);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.22);
+  padding: 22px;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.paymentPlanGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.paymentPlanCard,
+.paymentPlanCardActive,
+.paymentMethodCard,
+.paymentMethodCardActive {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 16px;
+  padding: 14px;
+  text-align: left;
+}
+
+.paymentPlanCard,
+.paymentMethodCard {
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  background: rgba(255, 247, 238, 0.03);
+  color: var(--cream);
+}
+
+.paymentPlanCardActive,
+.paymentMethodCardActive {
+  border: 1px solid rgba(214, 176, 111, 0.28);
+  background: rgba(214, 176, 111, 0.1);
+  color: var(--cream);
+}
+
+.paymentPlanCard span,
+.paymentPlanCardActive span {
+  font-family: var(--font-display), serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.paymentPlanCard strong,
+.paymentPlanCardActive strong {
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.paymentMethodGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.methodTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.methodTitleRow strong {
+  font-family: var(--font-display), serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.recommendedTag {
+  border-radius: 999px;
+  background: rgba(214, 176, 111, 0.2);
+  color: var(--accent-gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+}
+
+.paymentAccountBox {
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(244, 226, 198, 0.1);
+  background: rgba(255, 247, 238, 0.03);
+  padding: 14px 16px;
+}
+
+.paymentAccountBox strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display), serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+@media (max-width: 900px) {
+  .paymentPlanGrid,
+  .paymentMethodGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 16px 12px 40px;
+  }
+
+  .intakeCard,
+  .chatCard,
+  .modalCard {
+    padding: 20px;
+  }
+
+  .formGrid,
+  .preferenceGrid,
+  .modalActions,
+  .paymentPlanGrid,
+  .paymentMethodGrid,
+  .dateFieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cardHeaderTop,
+  .composer,
+  .statusRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .attachButton,
+  .sendButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .userBubble {
+    max-width: 100%;
+  }
+}

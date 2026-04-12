@@ -1,0 +1,33 @@
+{
+  "name": "fortune-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "ingest": "node --experimental-strip-types scripts/ingest-knowledge.ts"
+  },
+  "dependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
+    "next": "16.2.3",
+    "pdf-parse": "^2.4.5",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "24.5.2",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "eslint": "9.38.0",
+    "eslint-config-next": "16.2.3",
+    "jest": "30.3.0",
+    "ts-jest": "29.4.5",
+    "typescript": "5.9.3"
+  }
+}
