@@ -35,11 +35,13 @@ a {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.82fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: stretch;
-  max-width: 1050px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: 0;
 }
 
 .hero-copy,
@@ -47,13 +49,14 @@ a {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(218, 181, 116, 0.14);
-  border-radius: 26px;
+  border-radius: 24px;
   background: rgba(18, 14, 11, 0.86);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
 }
 
 .hero-copy {
-  padding: 14px;
+  height: 100%;
+  padding: 12px;
 }
 
 .hero-card {
@@ -61,57 +64,48 @@ a {
 }
 
 .oracle-bagua {
-  width: min(100%, 286px);
+  width: min(100%, 360px);
+  max-height: clamp(280px, 34vw, 420px);
   height: auto;
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.22));
 }
 
-.bagua-ring {
-  fill: none;
-  stroke: rgba(214, 176, 111, 0.7);
-  stroke-width: 2;
+.bagua-panel {
+  fill: #d5a81d;
 }
 
-.bagua-ring-soft {
-  stroke: rgba(247, 239, 227, 0.18);
-}
-
-.bagua-core {
-  fill: rgba(255, 247, 238, 0.05);
-  stroke: rgba(214, 176, 111, 0.35);
-  stroke-width: 1.5;
-}
-
-.bagua-yin {
-  fill: rgba(247, 239, 227, 0.94);
-}
-
-.bagua-yang {
-  fill: rgba(26, 20, 16, 0.94);
+.taiji-base {
+  fill: #111;
 }
 
 .bagua-dot-light {
-  fill: rgba(26, 20, 16, 0.94);
+  fill: #111;
 }
 
 .bagua-dot-dark {
-  fill: rgba(247, 239, 227, 0.94);
+  fill: #f5f2eb;
 }
 
-.trigram-bar {
-  fill: rgba(214, 176, 111, 0.92);
+.bagua-yin {
+  fill: #f5f2eb;
 }
 
-.mystic-board,
-.consult-card {
-  position: relative;
-  min-height: 100%;
-  border-radius: 22px;
-  overflow: hidden;
+.bagua-label {
+  fill: #111;
+  font-family: var(--font-display), serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.bagua-trigram-line {
+  fill: #111;
 }
 
 .mystic-board {
-  padding: 22px 22px 18px;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding: 24px;
   background:
     radial-gradient(circle at 25% 18%, rgba(201, 142, 71, 0.16), transparent 26%),
     radial-gradient(circle at 78% 78%, rgba(131, 102, 48, 0.1), transparent 22%),
@@ -192,69 +186,41 @@ a {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) minmax(200px, 0.76fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
-.mystic-mantra {
+.mystic-diagram-block {
   display: grid;
   justify-items: center;
-  gap: 4px;
-  color: rgba(227, 196, 142, 0.92);
-  font-family: var(--font-display), serif;
-  font-size: 1.45rem;
-  line-height: 1;
+  gap: 12px;
 }
 
-.mystic-mantra-divider {
-  width: 18px;
-  height: 1px;
-  margin: 4px 0;
-  background: rgba(214, 176, 111, 0.42);
+.mystic-diagram-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(227, 196, 142, 0.92);
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
 }
 
 .mystic-diagram {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 304px;
-  width: min(100%, 320px);
+  height: clamp(280px, 34vw, 420px);
+  width: min(100%, 360px);
   margin: 0 auto;
 }
 
 .mystic-diagram::before {
-  content: '';
-  position: absolute;
-  width: 78%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1px solid rgba(214, 176, 111, 0.18);
-  background: radial-gradient(circle at 50% 50%, rgba(214, 176, 111, 0.06), transparent 62%);
-}
-
-.mystic-wisdom {
-  position: relative;
-  z-index: 1;
-  align-self: center;
-}
-
-.mystic-wisdom h3 {
-  margin: 0 0 12px;
-  color: rgba(242, 222, 183, 0.96);
-  font-family: var(--font-display), serif;
-  font-size: 1.58rem;
-  font-weight: 500;
-  line-height: 1.1;
-}
-
-.mystic-wisdom ul {
-  margin: 0;
-  padding-left: 18px;
-  color: rgba(246, 238, 225, 0.8);
-  font-size: 0.88rem;
-  line-height: 1.68;
+  display: none;
 }
 
 .mystic-summary,
@@ -266,17 +232,17 @@ a {
 }
 
 .mystic-summary {
-  margin-top: 10px;
+  margin-top: 16px;
   text-align: center;
-  font-size: 0.88rem;
-  line-height: 1.72;
+  font-size: 1rem;
+  line-height: 1.62;
 }
 
 .mystic-domain-title {
   position: relative;
   z-index: 1;
   width: fit-content;
-  margin: 16px auto 12px;
+  margin: 20px auto 16px;
   padding: 5px 14px;
   border: 1px solid rgba(214, 176, 111, 0.22);
   border-radius: 999px;
@@ -291,21 +257,22 @@ a {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .mystic-domain-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 54px;
-  padding: 11px 12px;
+  min-height: 38px;
+  padding: 12px 16px;
   border: 1px solid rgba(214, 176, 111, 0.14);
   border-radius: 16px;
   background: rgba(23, 18, 14, 0.68);
   color: rgba(247, 239, 227, 0.92);
-  font-size: 0.85rem;
-  justify-content: flex-start;
+  font-size: 0.84rem;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .mystic-domain-mark {
@@ -323,11 +290,11 @@ a {
 }
 
 .mystic-footer {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px solid rgba(214, 176, 111, 0.14);
-  font-size: 0.86rem;
-  line-height: 1.68;
+  font-size: 1rem;
+  line-height: 1.62;
 }
 
 .mystic-corner,
@@ -370,62 +337,6 @@ a {
   bottom: 10px;
   border-width: 0 2px 2px 0;
   border-bottom-right-radius: 10px;
-}
-
-.mystic-trigram {
-  position: absolute;
-  color: rgba(230, 199, 145, 0.9);
-  font-family: var(--font-display), serif;
-  font-size: 1.32rem;
-  z-index: 1;
-  width: 28px;
-  text-align: center;
-  line-height: 1;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-}
-
-.mystic-trigram-top {
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.mystic-trigram-top-right {
-  top: 54px;
-  right: 34px;
-}
-
-.mystic-trigram-right {
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-}
-
-.mystic-trigram-bottom-right {
-  right: 34px;
-  bottom: 54px;
-}
-
-.mystic-trigram-bottom {
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.mystic-trigram-bottom-left {
-  bottom: 54px;
-  left: 34px;
-}
-
-.mystic-trigram-left {
-  top: 50%;
-  left: 8px;
-  transform: translateY(-50%);
-}
-
-.mystic-trigram-top-left {
-  top: 54px;
-  left: 34px;
 }
 
 .consult-copy,
@@ -575,19 +486,7 @@ a {
 
   .mystic-board-main {
     grid-template-columns: 1fr;
-  }
-
-  .mystic-mantra {
-    grid-auto-flow: column;
-    grid-template-columns: repeat(9, auto);
-    justify-content: center;
-    font-size: 1.45rem;
-  }
-
-  .mystic-mantra-divider {
-    width: 1px;
-    height: 18px;
-    margin: 0 4px;
+    gap: 18px;
   }
 }
 
@@ -617,7 +516,7 @@ a {
 
   .mystic-board,
   .consult-card {
-    padding: 18px 16px 16px;
+    padding: 20px 16px 18px;
   }
 
   .mystic-summary,
@@ -631,11 +530,16 @@ a {
     font-size: clamp(2.2rem, 9vw, 3.1rem);
   }
 
-  .mystic-wisdom h3 {
-    font-size: 1.7rem;
-  }
-
   .mystic-domain-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mystic-diagram {
+    width: min(100%, 320px);
+    height: 280px;
+  }
+
+  .mystic-diagram-title {
+    text-align: center;
   }
 }

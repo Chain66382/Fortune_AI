@@ -3,6 +3,8 @@
 import { createContext, startTransition, useEffect, useMemo, useState } from 'react';
 import type { AuthenticatedUser, LoginInput } from '@/types/auth';
 
+const LOGOUT_RESET_EVENT = 'fortune-ai:auth-logout';
+
 interface AuthContextValue {
   user: AuthenticatedUser | null;
   isLoading: boolean;
@@ -85,6 +87,10 @@ export const AuthProvider = ({
     startTransition(() => {
       setUser(null);
     });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(LOGOUT_RESET_EVENT));
+    }
   };
 
   const value = useMemo<AuthContextValue>(

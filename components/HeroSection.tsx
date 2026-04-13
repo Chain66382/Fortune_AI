@@ -9,34 +9,107 @@ const analysisDomains = [
   { mark: '风', label: '空间风水' }
 ];
 
-const consultationHighlights = [
+const baguaLayout = [
   {
-    mark: '易',
-    title: '多体系交叉参照',
-    description: '综合《易经》、六十四卦、梅花易数、风水、梦境、面相手相与星座资料。'
+    label: '乾',
+    labelX: 210,
+    labelY: 38,
+    trigramX: 210,
+    trigramY: 84,
+    labelRotation: 0,
+    trigramRotation: 0,
+    pattern: [1, 1, 1]
   },
   {
-    mark: '辨',
-    title: '按资料逐步深入',
-    description: '先依据基本信息进入对话，需要照片或空间图时，再明确告诉你该怎么补。'
+    label: '艮',
+    labelX: 334,
+    labelY: 88,
+    trigramX: 312,
+    trigramY: 116,
+    labelRotation: 48,
+    trigramRotation: 45,
+    pattern: [0, 0, 1]
   },
   {
-    mark: '析',
-    title: '围绕问题持续判断',
-    description: '适合运势、感情、事业、财运、梦境与空间风水等咨询方向。'
+    label: '坎',
+    labelX: 382,
+    labelY: 212,
+    trigramX: 338,
+    trigramY: 210,
+    labelRotation: 90,
+    trigramRotation: 90,
+    pattern: [0, 1, 0]
+  },
+  {
+    label: '巽',
+    labelX: 336,
+    labelY: 338,
+    trigramX: 312,
+    trigramY: 304,
+    labelRotation: 132,
+    trigramRotation: 135,
+    pattern: [0, 1, 1]
+  },
+  {
+    label: '坤',
+    labelX: 210,
+    labelY: 392,
+    trigramX: 210,
+    trigramY: 338,
+    labelRotation: 180,
+    trigramRotation: 180,
+    pattern: [0, 0, 0]
+  },
+  {
+    label: '震',
+    labelX: 86,
+    labelY: 336,
+    trigramX: 110,
+    trigramY: 304,
+    labelRotation: -132,
+    trigramRotation: 225,
+    pattern: [1, 0, 0]
+  },
+  {
+    label: '兑',
+    labelX: 40,
+    labelY: 210,
+    trigramX: 82,
+    trigramY: 210,
+    labelRotation: -90,
+    trigramRotation: 270,
+    pattern: [1, 1, 0]
+  },
+  {
+    label: '离',
+    labelX: 88,
+    labelY: 88,
+    trigramX: 110,
+    trigramY: 116,
+    labelRotation: -48,
+    trigramRotation: 315,
+    pattern: [1, 0, 1]
   }
 ];
 
-const trigramMarks = [
-  { label: '乾', className: 'mystic-trigram mystic-trigram-top' },
-  { label: '巽', className: 'mystic-trigram mystic-trigram-top-right' },
-  { label: '离', className: 'mystic-trigram mystic-trigram-right' },
-  { label: '坤', className: 'mystic-trigram mystic-trigram-bottom' },
-  { label: '艮', className: 'mystic-trigram mystic-trigram-bottom-left' },
-  { label: '震', className: 'mystic-trigram mystic-trigram-left' },
-  { label: '坎', className: 'mystic-trigram mystic-trigram-top-left' },
-  { label: '兑', className: 'mystic-trigram mystic-trigram-bottom-right' }
-];
+const renderTrigram = (pattern: number[], key: string) => (
+  <g key={key}>
+    {pattern.map((segment, index) => {
+      const y = index * 22 - 22;
+
+      if (segment === 1) {
+        return <rect key={`${key}-${index}`} x="-22" y={y} width="44" height="10" rx="2" className="bagua-trigram-line" />;
+      }
+
+      return (
+        <g key={`${key}-${index}`}>
+          <rect x="-22" y={y} width="17" height="10" rx="2" className="bagua-trigram-line" />
+          <rect x="5" y={y} width="17" height="10" rx="2" className="bagua-trigram-line" />
+        </g>
+      );
+    })}
+  </g>
+);
 
 export const HeroSection = () => (
   <section className="hero-shell">
@@ -49,61 +122,48 @@ export const HeroSection = () => (
         <span className="mystic-label">东方命理图谱</span>
 
         <div className="mystic-board-main">
-          <div className="mystic-mantra" aria-hidden="true">
-            <span>天</span>
-            <span>人</span>
-            <span>合</span>
-            <span>一</span>
-            <span className="mystic-mantra-divider" />
-            <span>阴</span>
-            <span>阳</span>
-            <span>平</span>
-            <span>衡</span>
-          </div>
+          <div className="mystic-diagram-block">
+            <div className="mystic-diagram-title">
+              <span>天人合一　陰陽平衡</span>
+            </div>
 
-          <div className="mystic-diagram" aria-hidden="true">
-            {trigramMarks.map((trigram) => (
-              <span key={trigram.label} className={trigram.className}>
-                {trigram.label}
-              </span>
-            ))}
+            <div className="mystic-diagram" aria-hidden="true">
+              <svg viewBox="0 0 420 420" className="oracle-bagua">
+                <rect x="10" y="10" width="400" height="400" rx="12" className="bagua-panel" />
 
-            <svg viewBox="0 0 360 360" className="oracle-bagua">
-              <circle cx="180" cy="180" r="136" className="bagua-ring" />
-              <circle cx="180" cy="180" r="101" className="bagua-ring bagua-ring-soft" />
-              <circle cx="180" cy="180" r="65" className="bagua-core" />
-              <path
-                d="M180 79a101 101 0 0 1 0 202 50.5 50.5 0 0 0 0-101 50.5 50.5 0 0 1 0-101Z"
-                className="bagua-yin"
-              />
-              <path
-                d="M180 79a50.5 50.5 0 0 1 0 101 50.5 50.5 0 0 0 0 101 101 101 0 0 1 0-202Z"
-                className="bagua-yang"
-              />
-              <circle cx="180" cy="130" r="12" className="bagua-dot-light" />
-              <circle cx="180" cy="230" r="12" className="bagua-dot-dark" />
-              {Array.from({ length: 8 }, (_, index) => {
-                const angle = index * 45;
-                return (
-                  <g key={angle} transform={`rotate(${angle} 180 180)`}>
-                    <rect x="164" y="10" width="32" height="7" rx="3.5" className="trigram-bar" />
-                    <rect x="164" y="25" width="32" height="7" rx="3.5" className="trigram-bar" />
-                    <rect x="164" y="40" width="13" height="7" rx="3.5" className="trigram-bar" />
-                    <rect x="183" y="40" width="13" height="7" rx="3.5" className="trigram-bar" />
+                {baguaLayout.map((item) => (
+                  <g key={item.label}>
+                    <text
+                      x={item.labelX}
+                      y={item.labelY}
+                      className="bagua-label"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      transform={`rotate(${item.labelRotation} ${item.labelX} ${item.labelY})`}
+                    >
+                      {item.label}
+                    </text>
+                    <g transform={`translate(${item.trigramX} ${item.trigramY}) rotate(${item.trigramRotation})`}>
+                      {renderTrigram(item.pattern, item.label)}
+                    </g>
                   </g>
-                );
-              })}
-            </svg>
-          </div>
+                ))}
 
-          <div className="mystic-wisdom">
-            <h3>命理知识 · 交叉参照</h3>
-            <ul>
-              <li>参考《易经》《周易六十四卦全解》与《梅花易数》的变化判断。</li>
-              <li>结合风水基础、空间格局、阴阳五行与卦象线索分析问题。</li>
-              <li>可延展到梦境、面相、手相与关系、事业、财运等具体方向。</li>
-              <li>回答会综合个人背景信息与当前对话上下文，不只看单一句子。</li>
-            </ul>
+                <circle cx="210" cy="210" r="82" className="taiji-base" />
+                <path
+                  d="
+                    M210 128
+                    A82 82 0 0 1 210 292
+                    A41 41 0 0 0 210 210
+                    A41 41 0 0 1 210 128
+                    Z
+                  "
+                  className="bagua-yin"
+                />
+                <circle cx="210" cy="169" r="13" className="bagua-dot-light" />
+                <circle cx="210" cy="251" r="13" className="bagua-dot-dark" />
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -127,48 +187,6 @@ export const HeroSection = () => (
         <p className="mystic-footer">
           适合整体运势、感情、事业、财运、梦境、面相、手相与空间风水咨询。
         </p>
-      </div>
-    </div>
-
-    <div className="hero-card">
-      <div className="consult-card">
-        <span className="consult-corner consult-corner-top-left" aria-hidden="true" />
-        <span className="consult-corner consult-corner-top-right" aria-hidden="true" />
-        <span className="consult-corner consult-corner-bottom-left" aria-hidden="true" />
-        <span className="consult-corner consult-corner-bottom-right" aria-hidden="true" />
-        <span className="consult-badge">Fortune AI</span>
-
-        <div className="consult-copy">
-          <h1>
-            与东方命理知识体系
-            <br />
-            一对一深度咨询
-          </h1>
-          <p>
-            系统会结合你填写的基础信息、当前困惑与对话上下文，参考《易经》《周易六十四卦全解》
-            《梅花易数》、风水、梦境、面相手相与星座资料，给出结构化回应。
-          </p>
-        </div>
-
-        <div className="consult-highlights">
-          {consultationHighlights.map((item) => (
-            <div key={item.title} className="consult-highlight-item">
-              <span className="consult-highlight-mark" aria-hidden="true">
-                {item.mark}
-              </span>
-              <div>
-                <strong>{item.title}</strong>
-                <p>{item.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="consult-table">
-          <span className="consult-table-glow consult-table-glow-left" aria-hidden="true" />
-          <span className="consult-table-glow consult-table-glow-right" aria-hidden="true" />
-          <span className="consult-flame" aria-hidden="true" />
-        </div>
       </div>
     </div>
   </section>

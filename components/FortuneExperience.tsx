@@ -276,8 +276,11 @@ export const FortuneExperience = () => {
         : 30;
 
     return (
-      <label>
-        出生日期
+      <label className={styles.birthDateField}>
+        <span className={styles.birthDateLabelRow}>
+          <span>出生日期</span>
+        </span>
+
         <div className={styles.calendarSwitch}>
           {(['lunar', 'solar'] as CalendarType[]).map((optionCalendarType) => (
             <button
@@ -298,6 +301,7 @@ export const FortuneExperience = () => {
         {activeCalendarType === 'solar' ? (
           <div className={styles.birthDateRow}>
             <input
+              className={styles.dateInputControl}
               type="date"
               value={currentProfile.birthDate}
               onChange={(event) => onChange(buildSolarProfile(currentProfile, event.target.value))}
@@ -309,117 +313,119 @@ export const FortuneExperience = () => {
             )}
           </div>
         ) : (
-          <div className={styles.dateFieldGrid}>
-            <select
-              value={selectedYear ? String(selectedYear) : ''}
-              onChange={(event) => {
-                const nextYear = Number(event.target.value);
+          <div className={styles.birthDateRow}>
+            <div className={styles.lunarDatePicker}>
+              <select
+                value={selectedYear ? String(selectedYear) : ''}
+                onChange={(event) => {
+                  const nextYear = Number(event.target.value);
 
-                if (!nextYear) {
-                  onChange({
-                    ...currentProfile,
-                    birthDate: '',
-                    birthDateLunar: '',
-                    birthIsLeapMonth: false
-                  });
-                  return;
-                }
+                  if (!nextYear) {
+                    onChange({
+                      ...currentProfile,
+                      birthDate: '',
+                      birthDateLunar: '',
+                      birthIsLeapMonth: false
+                    });
+                    return;
+                  }
 
-                const nextMonthOption = getLunarMonthOptions(nextYear)[0];
-                onChange(
-                  buildLunarProfile(
-                    currentProfile,
-                    nextYear,
-                    nextMonthOption.month,
-                    1,
-                    nextMonthOption.isLeapMonth
-                  )
-                );
-              }}
-            >
-              <option value="">年份</option>
-              {birthYears.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+                  const nextMonthOption = getLunarMonthOptions(nextYear)[0];
+                  onChange(
+                    buildLunarProfile(
+                      currentProfile,
+                      nextYear,
+                      nextMonthOption.month,
+                      1,
+                      nextMonthOption.isLeapMonth
+                    )
+                  );
+                }}
+              >
+                <option value="">年份</option>
+                {birthYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
 
-            <select
-              value={selectedMonthValue}
-              disabled={!selectedYear}
-              onChange={(event) => {
-                if (!selectedYear) {
-                  return;
-                }
+              <select
+                value={selectedMonthValue}
+                disabled={!selectedYear}
+                onChange={(event) => {
+                  if (!selectedYear) {
+                    return;
+                  }
 
-                const nextMonthOption = getLunarMonthOptions(selectedYear).find(
-                  (option) => option.value === event.target.value
-                );
+                  const nextMonthOption = getLunarMonthOptions(selectedYear).find(
+                    (option) => option.value === event.target.value
+                  );
 
-                if (!nextMonthOption) {
-                  return;
-                }
+                  if (!nextMonthOption) {
+                    return;
+                  }
 
-                const nextDay = Math.min(
-                  selectedDay || 1,
-                  getLunarDayCount(
-                    selectedYear,
-                    nextMonthOption.month,
-                    nextMonthOption.isLeapMonth
-                  )
-                );
-                onChange(
-                  buildLunarProfile(
-                    currentProfile,
-                    selectedYear,
-                    nextMonthOption.month,
-                    nextDay,
-                    nextMonthOption.isLeapMonth
-                  )
-                );
-              }}
-            >
-              <option value="">月份</option>
-              {monthOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+                  const nextDay = Math.min(
+                    selectedDay || 1,
+                    getLunarDayCount(
+                      selectedYear,
+                      nextMonthOption.month,
+                      nextMonthOption.isLeapMonth
+                    )
+                  );
+                  onChange(
+                    buildLunarProfile(
+                      currentProfile,
+                      selectedYear,
+                      nextMonthOption.month,
+                      nextDay,
+                      nextMonthOption.isLeapMonth
+                    )
+                  );
+                }}
+              >
+                <option value="">月份</option>
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
 
-            <select
-              value={selectedDay ? String(selectedDay) : ''}
-              disabled={!selectedYear || !selectedMonth}
-              onChange={(event) => {
-                if (!selectedYear || !selectedMonthOption) {
-                  return;
-                }
+              <select
+                value={selectedDay ? String(selectedDay) : ''}
+                disabled={!selectedYear || !selectedMonth}
+                onChange={(event) => {
+                  if (!selectedYear || !selectedMonthOption) {
+                    return;
+                  }
 
-                const nextDay = Number(event.target.value);
+                  const nextDay = Number(event.target.value);
 
-                if (!nextDay) {
-                  return;
-                }
+                  if (!nextDay) {
+                    return;
+                  }
 
-                onChange(
-                  buildLunarProfile(
-                    currentProfile,
-                    selectedYear,
-                    selectedMonthOption.month,
-                    nextDay,
-                    selectedMonthOption.isLeapMonth
-                  )
-                );
-              }}
-            >
-              <option value="">日期</option>
-              {Array.from({ length: dayCount }, (_, index) => index + 1).map((day) => (
-                <option key={day} value={day}>
-                  {day}
-                </option>
-              ))}
-            </select>
+                  onChange(
+                    buildLunarProfile(
+                      currentProfile,
+                      selectedYear,
+                      selectedMonthOption.month,
+                      nextDay,
+                      selectedMonthOption.isLeapMonth
+                    )
+                  );
+                }}
+              >
+                <option value="">日期</option>
+                {Array.from({ length: dayCount }, (_, index) => index + 1).map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <span className={styles.fieldHint}>
               {currentProfile.birthDateLunar || '请按农历选择年月日。'}
@@ -511,241 +517,242 @@ export const FortuneExperience = () => {
   return (
     <main className={styles.page}>
       <div className={styles.backgroundGlow} />
-      <HeroSection />
+      <section className={styles.firstFold}>
+        <HeroSection />
 
-      <section
-        className={`${styles.layout} ${stage === 'intake' ? styles.layoutSingle : styles.layoutChat}`}
-      >
-        {stage === 'intake' ? (
-          <section className={styles.intakeCard}>
-            <div className={styles.cardHeader}>
-              <span className={styles.eyebrow}>信息填写</span>
-              <h2>先保存个人信息，再开始命理对话</h2>
-              <p>这里只保留咨询前真正需要的基础资料，保存后会直接进入对话。</p>
-            </div>
-
-            {user ? (
-              <div className={styles.loggedInBox}>
-                <strong>当前已登录</strong>
-                <span>本次咨询会自动保存到当前账号；如果想匿名咨询，请先在右上角退出登录。</span>
-              </div>
-            ) : (
-              <div className={styles.preferenceGrid}>
-                {savePreferenceOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={
-                      savePreference === option.value ? styles.preferenceCardActive : styles.preferenceCard
-                    }
-                    onClick={() => setSavePreference(option.value)}
-                  >
-                    <strong>{option.label}</strong>
-                    <span>{option.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {renderProfileFields(profile, (nextProfile) => setProfile(nextProfile))}
-
-            {!user && savePreference === 'save' ? (
-              <div className={styles.registrationBox}>
-                <div className={styles.boxTitle}>保留记录时，先建立咨询账号</div>
-                <div className={styles.formGrid}>
-                  <label>
-                    账号类型
-                    <select
-                      value={registration.contactType}
-                      onChange={(event) =>
-                        setRegistration({
-                          ...registration,
-                          contactType: event.target.value as RegistrationInput['contactType']
-                        })
-                      }
-                    >
-                      {contactTypeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    {registration.contactType === 'email' ? '邮箱' : '手机号'}
-                    <input
-                      value={registration.contactValue}
-                      onChange={(event) =>
-                        setRegistration({
-                          ...registration,
-                          contactValue: event.target.value
-                        })
-                      }
-                      placeholder={registration.contactType === 'email' ? 'name@example.com' : '13800000000'}
-                    />
-                  </label>
-                </div>
-
-                <label className={styles.fullWidth}>
-                  设置密码
-                  <input
-                    type="password"
-                    value={registration.password}
-                    onChange={(event) =>
-                      setRegistration({
-                        ...registration,
-                        password: event.target.value
-                      })
-                    }
-                    placeholder="至少 6 位"
-                  />
-                </label>
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              className={styles.primaryButton}
-              disabled={isSubmitting}
-              onClick={saveProfile}
-            >
-              {isSubmitting ? '保存中' : '保存信息'}
-            </button>
-
-            {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
-          </section>
-        ) : (
-          <section className={styles.chatStage}>
-            <section className={styles.chatCard}>
-              <div className={styles.cardHeader}>
-                <div className={styles.cardHeaderTop}>
-                  <span className={styles.eyebrow}>命理对话</span>
-                  <button
-                    type="button"
-                    className={styles.inlineEditButton}
-                    onClick={() => setEditingProfile({ ...profile })}
-                  >
-                    修改个人信息
-                  </button>
-                </div>
-                <h2>现在可以直接开始问</h2>
-                <p>对话里需要什么资料，老师会当下告诉你，不提前堆给你多余步骤。</p>
+        <section
+          className={`${styles.layout} ${stage === 'intake' ? styles.layoutSingle : styles.layoutChat}`}
+        >
+          {stage === 'intake' ? (
+            <section className={styles.intakeCard}>
+              <div className={`${styles.cardHeader} ${styles.intakeHeader}`}>
+                <span className={styles.eyebrow}>信息填写</span>
+                <h2 className={styles.intakeTitle}>錄入個人資訊 定製專屬命理解析</h2>
               </div>
 
-              {activeAccount || user ? (
-                <div className={styles.accountBanner}>
-                  <div>
-                    <strong>咨询账号已建立并已登录</strong>
-                    <p>
-                      {maskContactValue((activeAccount || user)!.contactValue)} · 本次资料与聊天记录会自动保留。
-                    </p>
-                  </div>
+              {user ? (
+                <div className={styles.loggedInBox}>
+                  <strong>当前已登录</strong>
+                  <span>本次咨询会自动保存到当前账号；如果想匿名咨询，请先在右上角退出登录。</span>
                 </div>
               ) : (
-                <div className={styles.guestBanner}>
-                  <div>
-                    <strong>当前为匿名咨询</strong>
-                    <p>如需长期保留资料与聊天记录，可在付费时一并建立账号。</p>
-                  </div>
+                <div className={styles.preferenceGrid}>
+                  {savePreferenceOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={
+                        savePreference === option.value ? styles.preferenceCardActive : styles.preferenceCard
+                      }
+                      onClick={() => setSavePreference(option.value)}
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.description}</span>
+                    </button>
+                  ))}
                 </div>
               )}
 
-              <div className={styles.statusRow}>
-                <span>{isPaid ? '已进入付费深度咨询' : `免费咨询剩余 ${freeTurnsRemaining} 次`}</span>
-                {paymentRequired && !isPaid ? (
-                  <button
-                    type="button"
-                    className={styles.inlinePayButton}
-                    onClick={() => setPaymentModalOpen(true)}
-                  >
-                    查看支付方式
-                  </button>
-                ) : null}
-              </div>
+              {renderProfileFields(profile, (nextProfile) => setProfile(nextProfile))}
 
-              <div className={styles.transcript} ref={transcriptRef}>
-                {conversation.map((message, index) => (
-                  <article
-                    key={`${message.role}-${index}`}
-                    className={message.role === 'assistant' ? styles.assistantBubble : styles.userBubble}
-                  >
-                    {message.headline ? <strong>{message.headline}</strong> : null}
-                    <p>{message.content}</p>
-                  </article>
-                ))}
-              </div>
+              {!user && savePreference === 'save' ? (
+                <div className={styles.registrationBox}>
+                  <div className={styles.boxTitle}>保留记录时，先建立咨询账号</div>
+                  <div className={styles.formGrid}>
+                    <label>
+                      账号类型
+                      <select
+                        value={registration.contactType}
+                        onChange={(event) =>
+                          setRegistration({
+                            ...registration,
+                            contactType: event.target.value as RegistrationInput['contactType']
+                          })
+                        }
+                      >
+                        {contactTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-              <div className={styles.chatTools}>
-                {profile.uploadedAssets.length > 0 ? (
-                  <div className={styles.assetSummary}>
-                    已收到 {profile.uploadedAssets.length} 份资料：
-                    {profile.uploadedAssets.map((asset) => asset.fileName).join('、')}
+                    <label>
+                      {registration.contactType === 'email' ? '邮箱' : '手机号'}
+                      <input
+                        value={registration.contactValue}
+                        onChange={(event) =>
+                          setRegistration({
+                            ...registration,
+                            contactValue: event.target.value
+                          })
+                        }
+                        placeholder={registration.contactType === 'email' ? 'name@example.com' : '13800000000'}
+                      />
+                    </label>
                   </div>
-                ) : null}
 
-                <div className={styles.composer}>
-                  <label
-                    className={`${styles.attachButton} ${
-                      isUploadingAssets ? styles.attachButtonBusy : ''
-                    }`}
-                    title={
-                      requestedAssetCategory
-                        ? '老师刚刚要求补资料，点击上传。'
-                        : '上传补充资料'
-                    }
-                  >
+                  <label className={styles.fullWidth}>
+                    设置密码
                     <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      disabled={isUploadingAssets}
-                      onChange={(event) => {
-                        uploadAssetsToConversation(
-                          event.target.files,
-                          requestedAssetCategory || 'other'
-                        );
-                        event.currentTarget.value = '';
-                      }}
+                      type="password"
+                      value={registration.password}
+                      onChange={(event) =>
+                        setRegistration({
+                          ...registration,
+                          password: event.target.value
+                        })
+                      }
+                      placeholder="至少 6 位"
                     />
-                    <svg viewBox="0 0 24 24" className={styles.attachIcon} aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
                   </label>
+                </div>
+              ) : null}
 
-                  <textarea
-                    value={followUpQuestion}
-                    onChange={(event) => setFollowUpQuestion(event.target.value)}
-                    className={styles.composerInput}
-                    placeholder={
-                      requestedAssetCategory
-                        ? '老师刚刚让你补资料，上传后也可以继续追问。'
-                        : conversation.length <= 1
-                          ? '有问题，尽管问。'
-                          : '继续追问。'
-                    }
-                    disabled={isSubmitting}
-                  />
+              <button
+                type="button"
+                className={styles.primaryButton}
+                disabled={isSubmitting}
+                onClick={saveProfile}
+              >
+                {isSubmitting ? '保存中' : '保存信息'}
+              </button>
 
-                  <button
-                    type="button"
-                    className={styles.sendButton}
-                    disabled={isSubmitting}
-                    onClick={sendFollowUp}
-                    aria-label="发送"
-                    title="发送"
-                  >
-                    <svg viewBox="0 0 24 24" className={styles.sendIcon} aria-hidden="true">
-                      <path d="M5 12h11M12 5l7 7-7 7" />
-                    </svg>
-                  </button>
+              {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
+            </section>
+          ) : (
+            <section className={styles.chatStage}>
+              <section className={styles.chatCard}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardHeaderTop}>
+                    <span className={styles.eyebrow}>命理对话</span>
+                    <button
+                      type="button"
+                      className={styles.inlineEditButton}
+                      onClick={() => setEditingProfile({ ...profile })}
+                    >
+                      修改个人信息
+                    </button>
+                  </div>
+                  <h2>现在可以直接开始问</h2>
+                  <p>对话里需要什么资料，老师会当下告诉你，不提前堆给你多余步骤。</p>
                 </div>
 
-                {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
-              </div>
+                {activeAccount || user ? (
+                  <div className={styles.accountBanner}>
+                    <div>
+                      <strong>咨询账号已建立并已登录</strong>
+                      <p>
+                        {maskContactValue((activeAccount || user)!.contactValue)} · 本次资料与聊天记录会自动保留。
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.guestBanner}>
+                    <div>
+                      <strong>当前为匿名咨询</strong>
+                      <p>如需长期保留资料与聊天记录，可在付费时一并建立账号。</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className={styles.statusRow}>
+                  <span>{isPaid ? '已进入付费深度咨询' : `免费咨询剩余 ${freeTurnsRemaining} 次`}</span>
+                  {paymentRequired && !isPaid ? (
+                    <button
+                      type="button"
+                      className={styles.inlinePayButton}
+                      onClick={() => setPaymentModalOpen(true)}
+                    >
+                      查看支付方式
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className={styles.transcript} ref={transcriptRef}>
+                  {conversation.map((message, index) => (
+                    <article
+                      key={`${message.role}-${index}`}
+                      className={message.role === 'assistant' ? styles.assistantBubble : styles.userBubble}
+                    >
+                      {message.headline ? <strong>{message.headline}</strong> : null}
+                      <p>{message.content}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className={styles.chatTools}>
+                  {profile.uploadedAssets.length > 0 ? (
+                    <div className={styles.assetSummary}>
+                      已收到 {profile.uploadedAssets.length} 份资料：
+                      {profile.uploadedAssets.map((asset) => asset.fileName).join('、')}
+                    </div>
+                  ) : null}
+
+                  <div className={styles.composer}>
+                    <label
+                      className={`${styles.attachButton} ${
+                        isUploadingAssets ? styles.attachButtonBusy : ''
+                      }`}
+                      title={
+                        requestedAssetCategory
+                          ? '老师刚刚要求补资料，点击上传。'
+                          : '上传补充资料'
+                      }
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={isUploadingAssets}
+                        onChange={(event) => {
+                          uploadAssetsToConversation(
+                            event.target.files,
+                            requestedAssetCategory || 'other'
+                          );
+                          event.currentTarget.value = '';
+                        }}
+                      />
+                      <svg viewBox="0 0 24 24" className={styles.attachIcon} aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </label>
+
+                    <textarea
+                      value={followUpQuestion}
+                      onChange={(event) => setFollowUpQuestion(event.target.value)}
+                      className={styles.composerInput}
+                      placeholder={
+                        requestedAssetCategory
+                          ? '老师刚刚让你补资料，上传后也可以继续追问。'
+                          : conversation.length <= 1
+                            ? '有问题，尽管问。'
+                            : '继续追问。'
+                      }
+                      disabled={isSubmitting}
+                    />
+
+                    <button
+                      type="button"
+                      className={styles.sendButton}
+                      disabled={isSubmitting}
+                      onClick={sendFollowUp}
+                      aria-label="发送"
+                      title="发送"
+                    >
+                      <svg viewBox="0 0 24 24" className={styles.sendIcon} aria-hidden="true">
+                        <path d="M5 12h11M12 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
+                </div>
+              </section>
             </section>
-          </section>
-        )}
+          )}
+        </section>
       </section>
 
       <section className={styles.footerNote}>

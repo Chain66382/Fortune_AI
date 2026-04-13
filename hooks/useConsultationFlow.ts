@@ -81,6 +81,7 @@ const defaultRegistration: RegistrationInput = {
 };
 
 const STORAGE_KEY = 'fortune-ai-session-v2';
+const LOGOUT_RESET_EVENT = 'fortune-ai:auth-logout';
 
 const uploadAcknowledgement: Record<AssetCategory, string> = {
   face: '面相资料已收到。继续告诉我你想重点看哪一面，我会顺着这条线往下看。',
@@ -125,6 +126,33 @@ const answerToConversation = (answer: AnswerPayload): ConversationItem => ({
   content: [answer.summary, ...answer.details, ...answer.guidance].join('\n')
 });
 
+export const buildDefaultConsultationSession = () => ({
+  profile: {
+    ...defaultProfile,
+    uploadedAssets: []
+  },
+  followUpQuestion: '',
+  savePreference: 'do_not_save' as SavePreference,
+  registration: {
+    ...defaultRegistration
+  },
+  paymentRegistration: {
+    ...defaultRegistration
+  },
+  consultationId: '',
+  conversation: [] as ConversationItem[],
+  stage: 'intake' as const,
+  freeTurnsRemaining: 3,
+  paymentRequired: false,
+  paymentModalOpen: false,
+  requiresRegistrationForPayment: false,
+  isPaid: false,
+  activeAccount: null as ActiveAccountSession | null,
+  selectedPaymentPlan: 'consultation_pack_1000' as PaymentPlan,
+  selectedPaymentMethod: 'usdt' as PaymentMethod,
+  hasAskedFirstQuestion: false
+});
+
 export const useConsultationFlow = () => {
   const { user, refreshSession, isLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfileInput>(defaultProfile);
@@ -149,6 +177,35 @@ export const useConsultationFlow = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('usdt');
   const [hasAskedFirstQuestion, setHasAskedFirstQuestion] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+
+  const resetConsultationState = () => {
+    const initialState = buildDefaultConsultationSession();
+
+    startTransition(() => {
+      setProfile(initialState.profile);
+      setFollowUpQuestion(initialState.followUpQuestion);
+      setSavePreference(initialState.savePreference);
+      setRegistration(initialState.registration);
+      setPaymentRegistration(initialState.paymentRegistration);
+      setConsultationId(initialState.consultationId);
+      setConversation(initialState.conversation);
+      setStage(initialState.stage);
+      setFreeTurnsRemaining(initialState.freeTurnsRemaining);
+      setPaymentRequired(initialState.paymentRequired);
+      setPaymentModalOpen(initialState.paymentModalOpen);
+      setRequiresRegistrationForPayment(initialState.requiresRegistrationForPayment);
+      setIsPaid(initialState.isPaid);
+      setActiveAccount(initialState.activeAccount);
+      setSelectedPaymentPlan(initialState.selectedPaymentPlan);
+      setSelectedPaymentMethod(initialState.selectedPaymentMethod);
+      setHasAskedFirstQuestion(initialState.hasAskedFirstQuestion);
+      setErrorMessage('');
+    });
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -216,6 +273,22 @@ export const useConsultationFlow = () => {
     } finally {
       setHasHydrated(true);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleLogoutReset = () => {
+      resetConsultationState();
+    };
+
+    window.addEventListener(LOGOUT_RESET_EVENT, handleLogoutReset);
+
+    return () => {
+      window.removeEventListener(LOGOUT_RESET_EVENT, handleLogoutReset);
+    };
   }, []);
 
   useEffect(() => {
