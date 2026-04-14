@@ -100,7 +100,7 @@ export const AppHeader = () => {
         <div className={styles.overlay}>
           <div className={styles.card}>
             <h2 className={styles.title}>Login</h2>
-            <p className={styles.subtitle}>登录后，历史咨询、付费权益和后续记录会统一绑定到当前账号。</p>
+            <p className={styles.subtitle}>已注册会直接登录；未注册会自动创建账号并登录，历史咨询和后续记录会统一绑定到当前账号。</p>
 
             <div className={styles.formGrid}>
               <label>

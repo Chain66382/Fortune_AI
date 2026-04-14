@@ -5,7 +5,7 @@ import {
   createSessionToken,
   hashSessionToken
 } from '@/lib/auth';
-import { verifyPassword } from '@/lib/passwords';
+import { hashPassword, verifyPassword } from '@/lib/passwords';
 import { SessionRepository } from '@/models/repositories/sessionRepository';
 import { UserRepository } from '@/models/repositories/userRepository';
 import { AppError } from '@/services/errors';
@@ -17,6 +17,14 @@ const normalizeLoginInput = (input: LoginInput): LoginInput => ({
   contactValue: input.contactValue.trim(),
   password: input.password.trim()
 });
+
+const buildDisplayNameFromContact = (contactValue: string): string => {
+  if (contactValue.includes('@')) {
+    return contactValue.split('@')[0].slice(0, 16) || '新用户';
+  }
+
+  return `用户${contactValue.slice(-4) || ''}`;
+};
 
 const toAuthenticatedUser = (user: UserAccountRecord): AuthenticatedUser => ({
   id: user.id,
@@ -73,14 +81,27 @@ export class AuthService {
     expiresAt: string;
   }> {
     const normalizedInput = normalizeLoginInput(input);
-    const user = await this.userRepository.getByContactValue(normalizedInput.contactValue);
+    let user = await this.userRepository.getByContactValue(normalizedInput.contactValue);
 
     if (!user || user.contactType !== normalizedInput.contactType) {
-      throw new AppError('Account not found.', 404);
+      const now = new Date().toISOString();
+
+      user = await this.userRepository.create({
+        id: createId('user'),
+        contactType: normalizedInput.contactType,
+        contactValue: normalizedInput.contactValue,
+        passwordHash: hashPassword(normalizedInput.password),
+        displayName: buildDisplayNameFromContact(normalizedInput.contactValue),
+        consultationCredits: 0,
+        membershipPlan: undefined,
+        membershipExpiresAt: undefined,
+        createdAt: now,
+        updatedAt: now
+      });
     }
 
     if (!verifyPassword(normalizedInput.password, user.passwordHash)) {
-      throw new AppError('Incorrect password.', 401);
+      throw new AppError('该账号已经注册，请输入正确的密码。', 401);
     }
 
     return this.createSessionForUser(user.id);

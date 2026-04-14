@@ -55,4 +55,51 @@ describe('AuthService', () => {
     const clearedUser = await authService.getAuthenticatedUserByToken(session.sessionToken);
     expect(clearedUser).toBeNull();
   });
+
+  it('auto-creates an account and logs in when the contact is not registered yet', async () => {
+    const { AuthService } = await import('@/services/auth/authService');
+
+    const authService = new AuthService();
+    const session = await authService.authenticate({
+      contactType: 'email',
+      contactValue: 'new-user@example.com',
+      password: 'secret12'
+    });
+
+    expect(session.user.contactValue).toBe('new-user@example.com');
+    expect(session.user.displayName).toBe('new-user');
+  });
+
+  it('asks for the correct password when the account is already registered', async () => {
+    const { UserRepository } = await import('@/models/repositories/userRepository');
+    const { hashPassword } = await import('@/lib/passwords');
+    const { AuthService } = await import('@/services/auth/authService');
+
+    const userRepository = new UserRepository();
+    const authService = new AuthService();
+    const now = new Date().toISOString();
+
+    await userRepository.create({
+      id: 'user_auth_2',
+      contactType: 'phone',
+      contactValue: '13800000000',
+      passwordHash: hashPassword('secret12'),
+      displayName: '已注册用户',
+      consultationCredits: 0,
+      membershipPlan: undefined,
+      membershipExpiresAt: undefined,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    await expect(
+      authService.authenticate({
+        contactType: 'phone',
+        contactValue: '13800000000',
+        password: 'wrong-pass'
+      })
+    ).rejects.toMatchObject({
+      message: '该账号已经注册，请输入正确的密码。'
+    });
+  });
 });

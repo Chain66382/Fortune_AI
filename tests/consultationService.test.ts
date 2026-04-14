@@ -349,7 +349,7 @@ describe('ConsultationService', () => {
         }
       })
     ).rejects.toMatchObject({
-      message: '已经注册了，请输入密码登录。'
+      message: '该账号已经注册，请输入正确的密码。'
     });
   });
 });

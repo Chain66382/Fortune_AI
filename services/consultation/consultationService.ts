@@ -102,7 +102,7 @@ export class ConsultationService {
 
     if (existingUser) {
       if (!verifyPassword(input.registration.password, existingUser.passwordHash)) {
-        throw new AppError('已经注册了，请输入密码登录。', 409);
+        throw new AppError('该账号已经注册，请输入正确的密码。', 409);
       }
 
       await this.userRepository.updateDisplayName(existingUser.id, input.profile.displayName);
@@ -252,7 +252,7 @@ export class ConsultationService {
 
     if (existingUser) {
       if (!verifyPassword(validatedInput.registration!.password, existingUser.passwordHash)) {
-        throw new AppError('已经注册了，请输入密码登录。', 409);
+        throw new AppError('该账号已经注册，请输入正确的密码。', 409);
       }
 
       await this.userRepository.updateDisplayName(existingUser.id, consultation.profile.displayName);
