@@ -6,6 +6,7 @@ import { HeroSection } from '@/components/HeroSection';
 import { useConsultationFlow } from '@/hooks/useConsultationFlow';
 import {
   buildStoredLunarDate,
+  convertLunarToSolar,
   convertSolarToLunar,
   formatLunarDate,
   getLunarDayCount,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/lunarCalendar';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/paymentMethods';
 import { PAYMENT_PLAN_OPTIONS, formatMoney } from '@/lib/paymentPlans';
+import { normalizeBirthProfileToUtc8, TIMEZONE_OPTIONS } from '@/lib/timezones';
 import type {
   AssetCategory,
   CalendarType,
@@ -50,6 +52,8 @@ const contactTypeOptions: Array<{ value: RegistrationInput['contactType']; label
 ];
 
 const birthYears = getSupportedBirthYears();
+const consultationDisclaimer =
+  'Fortune AI 提供的是命理咨询与个人反思参考，不替代医疗、法律、投资等专业意见。';
 
 const maskContactValue = (contactValue: string) => {
   if (!contactValue) {
@@ -97,6 +101,326 @@ const inferRequestedAssetCategory = (
   }
 
   return null;
+};
+
+const normalizeProfileDraft = (profile: UserProfileInput): UserProfileInput =>
+  normalizeBirthProfileToUtc8(profile);
+
+const toSolarProfile = (currentProfile: UserProfileInput, birthDate: string): UserProfileInput =>
+  normalizeProfileDraft({
+    ...currentProfile,
+    birthCalendarType: 'solar',
+    birthDate,
+    birthDateLunar: birthDate ? formatLunarDate(convertSolarToLunar(birthDate)) : '',
+    birthIsLeapMonth: false
+  });
+
+const toLunarProfile = (
+  currentProfile: UserProfileInput,
+  year: number,
+  month: number,
+  day: number,
+  isLeapMonth: boolean
+): UserProfileInput =>
+  normalizeProfileDraft({
+    ...currentProfile,
+    birthCalendarType: 'lunar',
+    birthDate: buildStoredLunarDate(year, month, day),
+    birthDateLunar: formatLunarDate({
+      year,
+      month,
+      day,
+      isLeapMonth
+    }),
+    birthIsLeapMonth: isLeapMonth
+  });
+
+const toggleCalendarType = (
+  currentProfile: UserProfileInput,
+  calendarType: CalendarType
+): UserProfileInput => {
+  if (calendarType === currentProfile.birthCalendarType) {
+    return currentProfile;
+  }
+
+  if (!currentProfile.birthDate) {
+    return normalizeProfileDraft({
+      ...currentProfile,
+      birthCalendarType: calendarType,
+      birthDate: '',
+      birthDateLunar: '',
+      birthIsLeapMonth: false
+    });
+  }
+
+  if (calendarType === 'solar') {
+    const lunarParts = parseStoredLunarDate(currentProfile.birthDate, Boolean(currentProfile.birthIsLeapMonth));
+
+    return lunarParts
+      ? toSolarProfile(currentProfile, convertLunarToSolar(lunarParts))
+      : normalizeProfileDraft({
+          ...currentProfile,
+          birthCalendarType: 'solar',
+          birthDate: '',
+          birthDateLunar: '',
+          birthIsLeapMonth: false
+        });
+  }
+
+  try {
+    const solarDate =
+      currentProfile.birthCalendarType === 'solar'
+        ? currentProfile.birthDate
+        : convertLunarToSolar(
+            parseStoredLunarDate(currentProfile.birthDate, Boolean(currentProfile.birthIsLeapMonth))!
+          );
+    const lunarDate = convertSolarToLunar(solarDate);
+
+    return toLunarProfile(
+      currentProfile,
+      lunarDate.year,
+      lunarDate.month,
+      lunarDate.day,
+      lunarDate.isLeapMonth
+    );
+  } catch {
+    return normalizeProfileDraft({
+      ...currentProfile,
+      birthCalendarType: 'lunar',
+      birthDate: '',
+      birthDateLunar: '',
+      birthIsLeapMonth: false
+    });
+  }
+};
+
+const getLunarDraftFromProfile = (profile: UserProfileInput) => {
+  const lunarParts =
+    profile.birthCalendarType === 'lunar'
+      ? parseStoredLunarDate(profile.birthDate, Boolean(profile.birthIsLeapMonth))
+      : profile.birthDate
+        ? convertSolarToLunar(profile.birthDate)
+        : null;
+
+  const fallbackYear = birthYears[0];
+  const fallbackMonthOption = getLunarMonthOptions(fallbackYear)[0];
+
+  return {
+    year: lunarParts?.year || fallbackYear,
+    monthValue: lunarParts
+      ? `${lunarParts.isLeapMonth ? 'leap-' : ''}${lunarParts.month}`
+      : fallbackMonthOption.value,
+    day: lunarParts?.day || 1
+  };
+};
+
+const BirthDateField = ({
+  profile,
+  onChange
+}: {
+  profile: UserProfileInput;
+  onChange: (nextProfile: UserProfileInput) => void;
+}) => {
+  const [isLunarPickerOpen, setIsLunarPickerOpen] = useState(false);
+  const [lunarDraft, setLunarDraft] = useState(() => getLunarDraftFromProfile(profile));
+  const solarInputRef = useRef<HTMLInputElement | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+  const activeCalendarType = profile.birthCalendarType || 'lunar';
+
+  useEffect(() => {
+    setLunarDraft(getLunarDraftFromProfile(profile));
+  }, [profile.birthCalendarType, profile.birthDate, profile.birthIsLeapMonth]);
+
+  useEffect(() => {
+    if (!isLunarPickerOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setIsLunarPickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [isLunarPickerOpen]);
+
+  const monthOptions = getLunarMonthOptions(lunarDraft.year);
+  const activeMonthOption =
+    monthOptions.find((option) => option.value === lunarDraft.monthValue) || monthOptions[0];
+  const dayCount = getLunarDayCount(
+    lunarDraft.year,
+    activeMonthOption.month,
+    activeMonthOption.isLeapMonth
+  );
+  const dayOptions = Array.from({ length: dayCount }, (_, index) => index + 1);
+  const visibleValue =
+    activeCalendarType === 'solar'
+      ? profile.birthDate || ''
+      : profile.birthDateLunar || '';
+
+  const hintText =
+    activeCalendarType === 'solar'
+      ? profile.birthDateLunar
+        ? `已自动换算为 ${profile.birthDateLunar}`
+        : '保存时会自动换算成农历后再继续。'
+      : profile.birthDateLunarUtc8
+        ? `内部将按 UTC+8 归一为 ${profile.birthDateLunarUtc8}`
+        : '请选择农历日期，系统会同步换算到 UTC+8。';
+
+  return (
+    <div className={styles.birthField}>
+      <div className={styles.birthFieldHeader}>
+        <span className={styles.birthFieldLabel}>出生日期</span>
+        <div className={styles.calendarSwitchInline}>
+          {(['lunar', 'solar'] as CalendarType[]).map((optionCalendarType) => (
+            <button
+              key={optionCalendarType}
+              type="button"
+              className={
+                activeCalendarType === optionCalendarType
+                  ? styles.calendarToggleActive
+                  : styles.calendarToggle
+              }
+              onClick={() => {
+                setIsLunarPickerOpen(false);
+                onChange(toggleCalendarType(profile, optionCalendarType));
+              }}
+            >
+              {optionCalendarType === 'lunar' ? '阴历' : '阳历'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.birthInputRow} ref={pickerRef}>
+        <button
+          type="button"
+          className={styles.dateFieldButton}
+          onClick={() => {
+            if (activeCalendarType === 'solar') {
+              solarInputRef.current?.showPicker?.();
+              solarInputRef.current?.focus();
+              return;
+            }
+
+            setIsLunarPickerOpen((current) => !current);
+          }}
+        >
+          <span className={visibleValue ? styles.dateFieldValue : styles.dateFieldPlaceholder}>
+            {visibleValue || '请选择日期'}
+          </span>
+          <svg viewBox="0 0 24 24" className={styles.dateFieldIcon} aria-hidden="true">
+            <path d="M7 3v3M17 3v3M4 9h16M5 6h14a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1Z" />
+          </svg>
+          {activeCalendarType === 'solar' ? (
+            <input
+              ref={solarInputRef}
+              className={styles.hiddenDateInput}
+              type="date"
+              value={profile.birthDate}
+              onChange={(event) => onChange(toSolarProfile(profile, event.target.value))}
+              tabIndex={-1}
+              aria-hidden="true"
+            />
+          ) : null}
+        </button>
+
+        {activeCalendarType === 'lunar' && isLunarPickerOpen ? (
+          <div className={styles.lunarPopover}>
+            <div className={styles.lunarPopoverGrid}>
+              <select
+                value={String(lunarDraft.year)}
+                onChange={(event) => {
+                  const nextYear = Number(event.target.value);
+                  const nextMonthOption = getLunarMonthOptions(nextYear)[0];
+
+                  setLunarDraft({
+                    year: nextYear,
+                    monthValue: nextMonthOption.value,
+                    day: 1
+                  });
+                }}
+              >
+                {birthYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}年
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={lunarDraft.monthValue}
+                onChange={(event) =>
+                  setLunarDraft((current) => ({
+                    ...current,
+                    monthValue: event.target.value,
+                    day: 1
+                  }))
+                }
+              >
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={String(Math.min(lunarDraft.day, dayCount))}
+                onChange={(event) =>
+                  setLunarDraft((current) => ({
+                    ...current,
+                    day: Number(event.target.value)
+                  }))
+                }
+              >
+                {dayOptions.map((day) => (
+                  <option key={day} value={day}>
+                    {day}日
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.lunarPopoverActions}>
+              <button
+                type="button"
+                className={styles.secondaryInlineButton}
+                onClick={() => setIsLunarPickerOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className={styles.primaryInlineButton}
+                onClick={() => {
+                  onChange(
+                    toLunarProfile(
+                      profile,
+                      lunarDraft.year,
+                      activeMonthOption.month,
+                      Math.min(lunarDraft.day, dayCount),
+                      activeMonthOption.isLeapMonth
+                    )
+                  );
+                  setIsLunarPickerOpen(false);
+                }}
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <span className={styles.fieldHint}>{hintText}</span>
+    </div>
+  );
 };
 
 export const FortuneExperience = () => {
@@ -440,10 +764,11 @@ export const FortuneExperience = () => {
     currentProfile: UserProfileInput,
     field: K,
     value: UserProfileInput[K]
-  ): UserProfileInput => ({
-    ...currentProfile,
-    [field]: value
-  });
+  ): UserProfileInput =>
+    normalizeProfileDraft({
+      ...currentProfile,
+      [field]: value
+    });
 
   const renderProfileFields = (
     currentProfile: UserProfileInput,
@@ -477,19 +802,45 @@ export const FortuneExperience = () => {
             ))}
           </select>
         </label>
+      </div>
 
-        {renderBirthDateField(currentProfile, onChange)}
+      <div className={styles.birthDateTimeGrid}>
+        <BirthDateField profile={currentProfile} onChange={onChange} />
 
-        <label>
-          出生时间
-          <input
-            type="time"
-            value={currentProfile.birthTime}
-            onChange={(event) =>
-              onChange(updateProfileField(currentProfile, 'birthTime', event.target.value))
-            }
-          />
-        </label>
+        <div className={styles.birthField}>
+          <div className={styles.birthFieldHeader}>
+            <span className={styles.birthFieldLabel}>出生时间</span>
+          </div>
+
+          <div className={styles.birthTimeRow}>
+            <input
+              type="time"
+              value={currentProfile.birthTime}
+              onChange={(event) =>
+                onChange(updateProfileField(currentProfile, 'birthTime', event.target.value))
+              }
+            />
+
+            <select
+              value={currentProfile.birthTimezone || 'UTC+8'}
+              onChange={(event) =>
+                onChange(updateProfileField(currentProfile, 'birthTimezone', event.target.value))
+              }
+            >
+              {TIMEZONE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <span className={styles.fieldHint}>
+            {currentProfile.birthTimeUtc8
+              ? `将统一换算为 UTC+8 ${currentProfile.birthDateUtc8 || ''} ${currentProfile.birthTimeUtc8}`.trim()
+              : '可选择出生时间所属时区，系统会统一换算为 UTC+8。'}
+          </span>
+        </div>
       </div>
 
       <label className={styles.fullWidth}>
@@ -514,6 +865,18 @@ export const FortuneExperience = () => {
     setEditingProfile(null);
   };
 
+  const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+
+      if (!followUpQuestion.trim() || isSubmitting) {
+        return;
+      }
+
+      void sendFollowUp();
+    }
+  };
+
   return (
     <main className={styles.page}>
       <div className={styles.backgroundGlow} />
@@ -526,8 +889,8 @@ export const FortuneExperience = () => {
           {stage === 'intake' ? (
             <section className={styles.intakeCard}>
               <div className={`${styles.cardHeader} ${styles.intakeHeader}`}>
-                <span className={styles.eyebrow}>信息填写</span>
-                <h2 className={styles.intakeTitle}>錄入個人資訊 定製專屬命理解析</h2>
+                <span className="consult-badge">資訊填寫</span>
+                <h2 className={styles.intakeTitle}>錄入個人資訊　定製專屬命理解析</h2>
               </div>
 
               {user ? (
@@ -620,57 +983,61 @@ export const FortuneExperience = () => {
               </button>
 
               {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
+
+              <section className={styles.panelDisclaimer}>{consultationDisclaimer}</section>
             </section>
           ) : (
             <section className={styles.chatStage}>
               <section className={styles.chatCard}>
-                <div className={styles.cardHeader}>
-                  <div className={styles.cardHeaderTop}>
-                    <span className={styles.eyebrow}>命理对话</span>
-                    <button
-                      type="button"
-                      className={styles.inlineEditButton}
-                      onClick={() => setEditingProfile({ ...profile })}
-                    >
-                      修改个人信息
-                    </button>
+                <div className={styles.chatHeader}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.cardHeaderTop}>
+                      <span className={styles.eyebrow}>命理对话</span>
+                      <button
+                        type="button"
+                        className={styles.inlineEditButton}
+                        onClick={() => setEditingProfile({ ...profile })}
+                      >
+                        修改个人信息
+                      </button>
+                    </div>
+                    <h2>现在可以直接开始问</h2>
+                    <p>对话里需要什么资料，老师会当下告诉你，不提前堆给你多余步骤。</p>
                   </div>
-                  <h2>现在可以直接开始问</h2>
-                  <p>对话里需要什么资料，老师会当下告诉你，不提前堆给你多余步骤。</p>
+
+                  {activeAccount || user ? (
+                    <div className={styles.accountBanner}>
+                      <div>
+                        <strong>咨询账号已建立并已登录</strong>
+                        <p>
+                          {maskContactValue((activeAccount || user)!.contactValue)} · 本次资料与聊天记录会自动保留。
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.guestBanner}>
+                      <div>
+                        <strong>当前为匿名咨询</strong>
+                        <p>如需长期保留资料与聊天记录，可在付费时一并建立账号。</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.statusRow}>
+                    <span>{isPaid ? '已进入付费深度咨询' : `免费咨询剩余 ${freeTurnsRemaining} 次`}</span>
+                    {paymentRequired && !isPaid ? (
+                      <button
+                        type="button"
+                        className={styles.inlinePayButton}
+                        onClick={() => setPaymentModalOpen(true)}
+                      >
+                        查看支付方式
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
-                {activeAccount || user ? (
-                  <div className={styles.accountBanner}>
-                    <div>
-                      <strong>咨询账号已建立并已登录</strong>
-                      <p>
-                        {maskContactValue((activeAccount || user)!.contactValue)} · 本次资料与聊天记录会自动保留。
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.guestBanner}>
-                    <div>
-                      <strong>当前为匿名咨询</strong>
-                      <p>如需长期保留资料与聊天记录，可在付费时一并建立账号。</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className={styles.statusRow}>
-                  <span>{isPaid ? '已进入付费深度咨询' : `免费咨询剩余 ${freeTurnsRemaining} 次`}</span>
-                  {paymentRequired && !isPaid ? (
-                    <button
-                      type="button"
-                      className={styles.inlinePayButton}
-                      onClick={() => setPaymentModalOpen(true)}
-                    >
-                      查看支付方式
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className={styles.transcript} ref={transcriptRef}>
+                <div className={styles.messageList} ref={transcriptRef}>
                   {conversation.map((message, index) => (
                     <article
                       key={`${message.role}-${index}`}
@@ -682,7 +1049,7 @@ export const FortuneExperience = () => {
                   ))}
                 </div>
 
-                <div className={styles.chatTools}>
+                <div className={styles.chatComposer}>
                   {profile.uploadedAssets.length > 0 ? (
                     <div className={styles.assetSummary}>
                       已收到 {profile.uploadedAssets.length} 份资料：
@@ -722,6 +1089,7 @@ export const FortuneExperience = () => {
                     <textarea
                       value={followUpQuestion}
                       onChange={(event) => setFollowUpQuestion(event.target.value)}
+                      onKeyDown={handleComposerKeyDown}
                       className={styles.composerInput}
                       placeholder={
                         requestedAssetCategory
@@ -749,14 +1117,12 @@ export const FortuneExperience = () => {
 
                   {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
                 </div>
+
+                <section className={styles.panelDisclaimer}>{consultationDisclaimer}</section>
               </section>
             </section>
           )}
         </section>
-      </section>
-
-      <section className={styles.footerNote}>
-        Fortune AI 提供的是命理咨询与个人反思参考，不替代医疗、法律、投资等专业意见。
       </section>
 
       {editingProfile ? (

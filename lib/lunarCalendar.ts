@@ -199,6 +199,57 @@ export const convertSolarToLunar = (birthDate: string): LunarDateParts => {
   };
 };
 
+export const convertLunarToSolar = ({
+  year,
+  month,
+  day,
+  isLeapMonth
+}: LunarDateParts): string => {
+  assertSupportedYear(year);
+
+  if (month < 1 || month > 12 || day < 1 || day > 30) {
+    throw new AppError('Birth date is invalid.');
+  }
+
+  const leapMonth = getLeapMonth(year);
+
+  if (isLeapMonth && leapMonth !== month) {
+    throw new AppError('Birth date is invalid.');
+  }
+
+  const maxDay = getLunarDayCount(year, month, isLeapMonth);
+
+  if (day > maxDay) {
+    throw new AppError('Birth date is invalid.');
+  }
+
+  let offset = 0;
+
+  for (let currentYear = MIN_SUPPORTED_YEAR; currentYear < year; currentYear += 1) {
+    offset += getLunarYearDays(currentYear);
+  }
+
+  for (let currentMonth = 1; currentMonth < month; currentMonth += 1) {
+    offset += getMonthDays(year, currentMonth);
+
+    if (leapMonth === currentMonth) {
+      offset += getLeapMonthDays(year);
+    }
+  }
+
+  if (isLeapMonth) {
+    offset += getMonthDays(year, month);
+  }
+
+  offset += day - 1;
+
+  const solarDate = new Date(BASE_SOLAR_DATE + offset * 86400000);
+
+  return `${solarDate.getUTCFullYear()}-${pad(solarDate.getUTCMonth() + 1)}-${pad(
+    solarDate.getUTCDate()
+  )}`;
+};
+
 export const getLunarMonthOptions = (
   year: number
 ): Array<{ value: string; label: string; month: number; isLeapMonth: boolean }> => {

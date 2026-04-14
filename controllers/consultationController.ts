@@ -5,6 +5,23 @@ import { ConsultationService } from '@/services/consultation/consultationService
 const consultationService = new ConsultationService();
 
 export const consultationController = {
+  async getLatestConsultation() {
+    const authenticatedUser = await authController.getAuthenticatedUser();
+
+    if (!authenticatedUser) {
+      return Response.json({ consultation: null, messages: [] });
+    }
+
+    const payload = await consultationService.getLatestConsultationForUser(authenticatedUser.id);
+
+    return Response.json(
+      payload || {
+        consultation: null,
+        messages: []
+      }
+    );
+  },
+
   async createConsultation(request: Request) {
     const authenticatedUser = await authController.getAuthenticatedUser();
     const body = await request.json();

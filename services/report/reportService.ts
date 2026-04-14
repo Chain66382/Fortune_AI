@@ -230,8 +230,13 @@ export class ReportService {
 - 昵称：${consultation.profile.displayName}
 - 咨询方向：${focusLabels[consultation.profile.focusArea]}
 - 当前困扰：${consultation.profile.currentChallenge}
-- 出生日期（农历）：${consultation.profile.birthDateLunar || consultation.profile.birthDate}
-- 出生时间：${consultation.profile.birthTime || '未提供'}
+- 出生日期（农历）：${
+      consultation.profile.birthDateLunarUtc8 ||
+      consultation.profile.birthDateLunar ||
+      consultation.profile.birthDateUtc8 ||
+      consultation.profile.birthDate
+    }
+- 出生时间：${consultation.profile.birthTimeUtc8 || consultation.profile.birthTime || '未提供'}
 - 出生地：${consultation.profile.birthLocation || '未提供'}
 - 现居城市：${consultation.profile.currentCity || '未提供'}
 - 梦境补充：${consultation.profile.dreamContext || '无'}
@@ -285,8 +290,13 @@ ${joinEvidence(evidence)}
 - 昵称：${consultation.profile.displayName}
 - 咨询方向：${focusLabels[consultation.profile.focusArea]}
 - 当前困扰：${consultation.profile.currentChallenge}
-- 出生日期（农历）：${consultation.profile.birthDateLunar || consultation.profile.birthDate}
-- 出生时间：${consultation.profile.birthTime || '未提供'}
+- 出生日期（农历）：${
+      consultation.profile.birthDateLunarUtc8 ||
+      consultation.profile.birthDateLunar ||
+      consultation.profile.birthDateUtc8 ||
+      consultation.profile.birthDate
+    }
+- 出生时间：${consultation.profile.birthTimeUtc8 || consultation.profile.birthTime || '未提供'}
 - 出生地：${consultation.profile.birthLocation}
 - 现居城市：${consultation.profile.currentCity}
 - 梦境补充：${consultation.profile.dreamContext || '无'}

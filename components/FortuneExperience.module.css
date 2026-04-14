@@ -1,6 +1,10 @@
 .page {
   position: relative;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: visible;
   padding: 10px 12px 20px;
 }
 
@@ -16,13 +20,14 @@
 .firstFold {
   position: relative;
   z-index: 1;
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: stretch;
   gap: 24px;
   width: min(calc(100% - 12px), 1280px);
-  min-height: 88vh;
-  max-height: 960px;
+  min-height: 0;
+  height: min(960px, calc(100vh - 118px));
   margin: 8px auto 0;
   padding: 24px;
 }
@@ -32,17 +37,20 @@
   z-index: 1;
   width: 100%;
   height: 100%;
+  min-height: 0;
   margin: 0;
 }
 
 .layoutSingle {
   display: flex;
   align-items: stretch;
+  min-height: 0;
 }
 
 .layoutChat {
   display: flex;
   align-items: stretch;
+  min-height: 0;
 }
 
 .intakeCard,
@@ -60,7 +68,8 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   max-width: none;
   margin: 0;
   padding: 24px;
@@ -70,6 +79,34 @@
   display: grid;
   gap: 16px;
   width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.chatHeader {
+  display: grid;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.messageList {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  align-content: start;
+  scrollbar-width: thin;
+}
+
+.chatComposer {
+  flex: 0 0 auto;
+  border-top: 1px solid rgba(244, 226, 198, 0.1);
+  padding-top: 12px;
+  margin-top: 8px;
 }
 
 .cardHeader {
@@ -77,7 +114,11 @@
 }
 
 .intakeHeader {
-  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
 }
 
 .paymentHeader {
@@ -110,10 +151,13 @@
 }
 
 .intakeTitle {
-  margin-bottom: 0 !important;
-  font-size: clamp(1.65rem, 2.2vw, 2.35rem) !important;
-  line-height: 1.14 !important;
-  letter-spacing: 0.04em;
+  margin: 0 !important;
+  color: rgba(227, 196, 142, 0.92);
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.08em;
+  text-align: left;
 }
 
 .cardHeader p,
@@ -197,21 +241,15 @@
   margin-top: 12px;
 }
 
-.calendarSwitch {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: inline-flex;
-  gap: 8px;
-}
-
 .calendarToggle,
 .calendarToggleActive {
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
-  min-height: 40px;
-  padding: 8px 16px;
+  min-width: 64px;
+  min-height: 32px;
+  padding: 8px 14px;
+  font-size: 0.875rem;
   transition:
     transform 0.2s ease,
     border-color 0.2s ease,
@@ -230,61 +268,168 @@
   color: var(--cream);
 }
 
-.birthDateRow {
+.birthDateTimeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.birthField {
+  position: relative;
   display: grid;
   gap: 8px;
 }
 
-.birthDateField {
+.birthFieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.birthFieldLabel {
+  color: rgba(247, 239, 227, 0.88);
+  font-size: 0.9rem;
+}
+
+.calendarSwitchInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid rgba(244, 226, 198, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 247, 238, 0.03);
+}
+
+.birthInputRow {
   position: relative;
 }
 
-.birthDateLabelRow {
-  display: block;
-  min-height: 40px;
-  padding-right: 168px;
-}
-
-.dateInputControl {
-  min-height: 48px;
-}
-
-.lunarDatePicker {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 0.9fr;
-  gap: 8px;
-  min-height: 48px;
+.dateFieldButton {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
   border: 1px solid rgba(244, 226, 198, 0.12);
   border-radius: 14px;
   background: rgba(255, 247, 238, 0.04);
-  padding: 0 10px;
+  color: var(--cream);
+  padding: 0 14px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
-.lunarDatePicker select {
-  min-height: 46px;
-  border: none !important;
-  background: transparent !important;
-  padding: 10px 6px !important;
-  box-shadow: none;
-  transform: none !important;
+.dateFieldButton:hover,
+.dateFieldButton:focus-visible {
+  border-color: rgba(214, 176, 111, 0.42);
+  background: rgba(255, 247, 238, 0.06);
+  outline: none;
 }
 
-.lunarDatePicker select:focus {
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none;
-  transform: none !important;
+.dateFieldValue,
+.dateFieldPlaceholder {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.dateFieldGrid {
+.dateFieldValue {
+  color: var(--cream);
+}
+
+.dateFieldPlaceholder {
+  color: rgba(247, 239, 227, 0.42);
+}
+
+.dateFieldIcon {
+  width: 18px;
+  height: 18px;
+  color: rgba(247, 239, 227, 0.7);
+}
+
+.dateFieldIcon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hiddenDateInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lunarPopover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 5;
+  width: min(420px, 100%);
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  border-radius: 18px;
+  background: rgba(18, 16, 15, 0.96);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  padding: 14px;
+}
+
+.lunarPopoverGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1.2fr 1fr 0.9fr;
   gap: 10px;
+}
+
+.lunarPopoverActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.primaryInlineButton,
+.secondaryInlineButton {
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  min-height: 34px;
+  padding: 8px 14px;
+}
+
+.primaryInlineButton {
+  border: none;
+  background: linear-gradient(135deg, #d6b06f, #8b2d22);
+  color: #130f0d;
+  font-weight: 600;
+}
+
+.secondaryInlineButton {
+  border: 1px solid rgba(244, 226, 198, 0.14);
+  background: rgba(255, 247, 238, 0.04);
+  color: var(--cream);
+}
+
+.birthTimeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 10px;
+  align-items: stretch;
 }
 
 .fieldHint {
   color: var(--muted-text);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   line-height: 1.5;
 }
 
@@ -292,7 +437,7 @@
 .intakeCard select,
 .modalCard input,
 .modalCard select,
-.chatTools textarea {
+.chatComposer textarea {
   width: 100%;
   border: 1px solid rgba(244, 226, 198, 0.12);
   border-radius: 14px;
@@ -311,7 +456,7 @@
 .intakeCard select:focus,
 .modalCard input:focus,
 .modalCard select:focus,
-.chatTools textarea:focus {
+.chatComposer textarea:focus {
   border-color: rgba(214, 176, 111, 0.56);
   background: rgba(255, 247, 238, 0.07);
   transform: translateY(-1px);
@@ -452,17 +597,6 @@
   background: rgba(214, 176, 111, 0.12);
 }
 
-.transcript {
-  height: min(34vh, 320px);
-  display: grid;
-  gap: 8px;
-  margin-bottom: 16px;
-  overflow-y: auto;
-  padding-right: 4px;
-  align-content: start;
-  scrollbar-width: thin;
-}
-
 .statusRow {
   display: flex;
   align-items: center;
@@ -503,12 +637,6 @@
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--cream);
-}
-
-.chatTools {
-  border-top: 1px solid rgba(244, 226, 198, 0.1);
-  padding-top: 12px;
-  margin-top: auto;
 }
 
 .composer {
@@ -564,19 +692,33 @@
 }
 
 .composerInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
   min-height: 38px !important;
   max-height: 84px;
   border: none !important;
   background: transparent !important;
   padding: 8px 4px !important;
+  outline: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  color: #f7efe3 !important;
+  caret-color: #f7efe3;
   resize: none;
   box-shadow: none;
   transform: none !important;
 }
 
-.composerInput:focus {
+.composerInput::placeholder {
+  color: rgba(247, 239, 227, 0.42);
+}
+
+.composerInput:focus,
+.composerInput:focus-visible {
   border: none !important;
   background: transparent !important;
+  outline: none !important;
   box-shadow: none;
   transform: none !important;
 }
@@ -584,6 +726,7 @@
 .sendButton {
   display: inline-flex;
   flex: 0 0 auto;
+  margin-left: auto;
   width: 38px;
   height: 38px;
   align-items: center;
@@ -617,14 +760,15 @@
   color: #ffb3a6;
 }
 
-.footerNote {
-  position: relative;
-  z-index: 1;
-  max-width: 1280px;
-  margin: 16px auto 0;
-  padding: 12px 16px;
+.panelDisclaimer {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(244, 226, 198, 0.08);
+  color: rgba(247, 239, 227, 0.54);
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.55;
 }
 
 .modalOverlay {
@@ -754,8 +898,7 @@
 @media (max-width: 900px) {
   .firstFold {
     grid-template-columns: 1fr;
-    min-height: auto;
-    max-height: none;
+    height: auto;
     gap: 20px;
     padding: 20px 16px;
   }
@@ -763,6 +906,18 @@
   .layoutSingle,
   .layoutChat {
     display: block;
+  }
+
+  .chatStage,
+  .chatCard,
+  .layout {
+    min-height: auto;
+    height: auto;
+  }
+
+  .messageList {
+    min-height: 280px;
+    max-height: 46vh;
   }
 
   .paymentPlanGrid,
@@ -793,23 +948,24 @@
   .modalActions,
   .paymentPlanGrid,
   .paymentMethodGrid,
-  .dateFieldGrid {
+  .birthDateTimeGrid,
+  .lunarPopoverGrid,
+  .birthTimeRow {
     grid-template-columns: 1fr;
   }
 
-  .calendarSwitch {
-    position: static;
-    margin-top: 4px;
+  .birthFieldHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .birthDateLabelRow {
-    min-height: auto;
-    padding-right: 0;
+  .calendarSwitchInline {
+    width: 100%;
+    justify-content: flex-end;
   }
 
-  .lunarDatePicker {
-    grid-template-columns: 1fr;
-    padding: 8px 10px;
+  .lunarPopover {
+    width: 100%;
   }
 
   .cardHeaderTop,

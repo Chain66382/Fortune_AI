@@ -237,4 +237,119 @@ describe('ConsultationService', () => {
     expect(stored?.profile.displayName).toBe('晚风');
     expect(stored?.profile.birthLocation).toBe('杭州');
   });
+
+  it('restores the latest saved consultation and message history for a logged-in user', async () => {
+    const { ConsultationService } = await import('@/services/consultation/consultationService');
+    const service = new ConsultationService();
+
+    const consultation = await service.createConsultation(
+      {
+        savePreference: 'save',
+        profile: {
+          displayName: '望舒',
+          gender: 'female',
+          birthDate: '1992-06-03',
+          birthCalendarType: 'solar',
+          birthTime: '',
+          birthLocation: '杭州',
+          currentCity: '上海',
+          focusArea: 'overall',
+          currentChallenge: '最近想确认下一步方向。',
+          dreamContext: '',
+          fengShuiContext: '',
+          uploadedAssets: []
+        }
+      },
+      'missing-user'
+    ).catch(async () => {
+      return service.createConsultation({
+        savePreference: 'save',
+        registration: {
+          contactType: 'email',
+          contactValue: 'restore-user@example.com',
+          password: 'secret12'
+        },
+        profile: {
+          displayName: '望舒',
+          gender: 'female',
+          birthDate: '1992-06-03',
+          birthCalendarType: 'solar',
+          birthTime: '',
+          birthLocation: '杭州',
+          currentCity: '上海',
+          focusArea: 'overall',
+          currentChallenge: '最近想确认下一步方向。',
+          dreamContext: '',
+          fengShuiContext: '',
+          uploadedAssets: []
+        }
+      });
+    });
+
+    await service.generatePreview(consultation.id, {
+      question: '我接下来应该先稳住还是主动推进？'
+    });
+
+    const restored = await service.getLatestConsultationForUser(consultation.userId!);
+
+    expect(restored?.consultation.id).toBe(consultation.id);
+    expect(restored?.consultation.profile.displayName).toBe('望舒');
+    expect(restored?.messages.some((message) => message.role === 'user')).toBe(true);
+    expect(restored?.messages.some((message) => message.role === 'assistant')).toBe(true);
+  });
+
+  it('blocks duplicate contact registration and asks the user to log in with a password', async () => {
+    const { ConsultationService } = await import('@/services/consultation/consultationService');
+    const service = new ConsultationService();
+
+    await service.createConsultation({
+      savePreference: 'save',
+      registration: {
+        contactType: 'email',
+        contactValue: 'existing-user@example.com',
+        password: 'secret12'
+      },
+      profile: {
+        displayName: '青岚',
+        gender: 'female',
+        birthDate: '1993-07-18',
+        birthCalendarType: 'solar',
+        birthTime: '',
+        birthLocation: '',
+        currentCity: '',
+        focusArea: 'overall',
+        currentChallenge: '',
+        dreamContext: '',
+        fengShuiContext: '',
+        uploadedAssets: []
+      }
+    });
+
+    await expect(
+      service.createConsultation({
+        savePreference: 'save',
+        registration: {
+          contactType: 'email',
+          contactValue: 'existing-user@example.com',
+          password: 'wrong-pass'
+        },
+        profile: {
+          displayName: '青岚',
+          gender: 'female',
+          birthDate: '1993-07-18',
+          birthCalendarType: 'solar',
+          birthTime: '',
+          birthLocation: '',
+          currentCity: '',
+          focusArea: 'overall',
+          currentChallenge: '',
+          dreamContext: '',
+          fengShuiContext: '',
+          uploadedAssets: []
+        }
+      })
+    ).rejects.toMatchObject({
+      message: '已经注册了，请输入密码登录。'
+    });
+  });
 });

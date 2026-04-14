@@ -5,6 +5,7 @@ import {
   getLunarDayCount,
   parseStoredLunarDate
 } from '@/lib/lunarCalendar';
+import { normalizeBirthProfileToUtc8 } from '@/lib/timezones';
 import type {
   AttachAssetsInput,
   ChatInput,
@@ -55,16 +56,13 @@ const validatePaymentPlan = (paymentPlan?: PaymentPlan): PaymentPlan =>
 const validatePaymentMethod = (paymentMethod?: PaymentMethod): PaymentMethod =>
   validPaymentMethods.includes(paymentMethod || 'usdt') ? paymentMethod || 'usdt' : 'usdt';
 
-export const validateProfile = (profile: UserProfileInput): UserProfileInput => ({
-  displayName: requireTrimmed(profile.displayName, 'Display name'),
-  gender: profile.gender,
-  birthDate: (() => {
-    const birthDate = requireTrimmed(profile.birthDate, 'Birth date');
+export const validateProfile = (profile: UserProfileInput): UserProfileInput => {
+  const birthDate = requireTrimmed(profile.birthDate, 'Birth date');
+  const birthCalendarType = profile.birthCalendarType || 'lunar';
 
-    if ((profile.birthCalendarType || 'lunar') === 'solar') {
-      return birthDate;
-    }
-
+  if (birthCalendarType === 'solar') {
+    formatLunarDate(convertSolarToLunar(birthDate));
+  } else {
     const lunarParts = parseStoredLunarDate(birthDate, profile.birthIsLeapMonth);
 
     if (!lunarParts) {
@@ -76,41 +74,29 @@ export const validateProfile = (profile: UserProfileInput): UserProfileInput => 
     if (lunarParts.day > maxDay) {
       throw new AppError('Birth date is invalid.');
     }
+  }
 
-    return birthDate;
-  })(),
-  birthCalendarType: profile.birthCalendarType || 'lunar',
-  birthDateLunar: (() => {
-    const birthDate = requireTrimmed(profile.birthDate, 'Birth date');
-
-    if ((profile.birthCalendarType || 'lunar') === 'solar') {
-      return formatLunarDate(convertSolarToLunar(birthDate));
-    }
-
-    const lunarParts = parseStoredLunarDate(birthDate, profile.birthIsLeapMonth);
-
-    if (!lunarParts) {
-      throw new AppError('Birth date is invalid.');
-    }
-
-    const maxDay = getLunarDayCount(lunarParts.year, lunarParts.month, lunarParts.isLeapMonth);
-
-    if (lunarParts.day > maxDay) {
-      throw new AppError('Birth date is invalid.');
-    }
-
-    return formatLunarDate(lunarParts);
-  })(),
-  birthIsLeapMonth: Boolean(profile.birthIsLeapMonth),
-  birthTime: profile.birthTime?.trim(),
-  birthLocation: profile.birthLocation?.trim() || '',
-  currentCity: profile.currentCity?.trim() || '',
-  focusArea: profile.focusArea || 'overall',
-  currentChallenge: profile.currentChallenge?.trim() || '',
-  dreamContext: profile.dreamContext?.trim(),
-  fengShuiContext: profile.fengShuiContext?.trim(),
-  uploadedAssets: profile.uploadedAssets || []
-});
+  return normalizeBirthProfileToUtc8({
+    displayName: requireTrimmed(profile.displayName, 'Display name'),
+    gender: profile.gender,
+    birthDate,
+    birthCalendarType,
+    birthDateLunar: profile.birthDateLunar,
+    birthIsLeapMonth: Boolean(profile.birthIsLeapMonth),
+    birthTime: profile.birthTime?.trim(),
+    birthTimezone: profile.birthTimezone || 'UTC+8',
+    birthDateUtc8: profile.birthDateUtc8,
+    birthDateLunarUtc8: profile.birthDateLunarUtc8,
+    birthTimeUtc8: profile.birthTimeUtc8,
+    birthLocation: profile.birthLocation?.trim() || '',
+    currentCity: profile.currentCity?.trim() || '',
+    focusArea: profile.focusArea || 'overall',
+    currentChallenge: profile.currentChallenge?.trim() || '',
+    dreamContext: profile.dreamContext?.trim(),
+    fengShuiContext: profile.fengShuiContext?.trim(),
+    uploadedAssets: profile.uploadedAssets || []
+  });
+};
 
 export const validateCreateConsultation = (
   input: CreateConsultationInput,

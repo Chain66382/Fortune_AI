@@ -102,7 +102,7 @@ export class ConsultationService {
 
     if (existingUser) {
       if (!verifyPassword(input.registration.password, existingUser.passwordHash)) {
-        throw new AppError('This contact is already registered. Please use the correct password.', 409);
+        throw new AppError('已经注册了，请输入密码登录。', 409);
       }
 
       await this.userRepository.updateDisplayName(existingUser.id, input.profile.displayName);
@@ -252,7 +252,7 @@ export class ConsultationService {
 
     if (existingUser) {
       if (!verifyPassword(validatedInput.registration!.password, existingUser.passwordHash)) {
-        throw new AppError('This contact is already registered. Please use the correct password.', 409);
+        throw new AppError('已经注册了，请输入密码登录。', 409);
       }
 
       await this.userRepository.updateDisplayName(existingUser.id, consultation.profile.displayName);
@@ -482,6 +482,21 @@ export class ConsultationService {
   async getMessages(id: string): Promise<ConsultationMessage[]> {
     await this.getConsultationOrThrow(id);
     return this.messageRepository.findManyByConsultationId(id);
+  }
+
+  async getLatestConsultationForUser(userId: string) {
+    const consultation = await this.consultationRepository.getLatestByUserId(userId);
+
+    if (!consultation) {
+      return null;
+    }
+
+    const messages = await this.messageRepository.findManyByConsultationId(consultation.id);
+
+    return {
+      consultation,
+      messages
+    };
   }
 
   async createFollowUpMessage(id: string, input: ChatInput): Promise<ConsultationReplyPayload> {

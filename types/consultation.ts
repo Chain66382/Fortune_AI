@@ -42,6 +42,10 @@ export interface UserProfileInput {
   birthDateLunar?: string;
   birthIsLeapMonth?: boolean;
   birthTime?: string;
+  birthTimezone?: string;
+  birthDateUtc8?: string;
+  birthDateLunarUtc8?: string;
+  birthTimeUtc8?: string;
   birthLocation: string;
   currentCity: string;
   focusArea: FocusArea;

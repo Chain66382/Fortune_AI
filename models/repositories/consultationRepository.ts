@@ -67,6 +67,22 @@ export class ConsultationRepository {
     return row ? this.mapRow(row) : undefined;
   }
 
+  async getLatestByUserId(userId: string): Promise<ConsultationRecord | undefined> {
+    const row = this.db
+      .prepare(
+        `
+        SELECT *
+        FROM consultations
+        WHERE user_id = ?
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1
+      `
+      )
+      .get(userId) as ConsultationRow | undefined;
+
+    return row ? this.mapRow(row) : undefined;
+  }
+
   async create(record: ConsultationRecord): Promise<ConsultationRecord> {
     this.db
       .prepare(

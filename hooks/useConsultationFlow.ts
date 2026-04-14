@@ -45,6 +45,21 @@ interface UpdateProfileResponse {
   updatedAt: string;
 }
 
+interface LatestConsultationResponse {
+  consultation: {
+    id: string;
+    profile: UserProfileInput;
+    freeTurnsUsed: number;
+    unlocked: boolean;
+    userId?: string;
+  } | null;
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    headline?: string;
+  }>;
+}
+
 interface ConversationItem {
   role: 'user' | 'assistant';
   content: string;
@@ -65,6 +80,10 @@ const defaultProfile: UserProfileInput = {
   birthDateLunar: '',
   birthIsLeapMonth: false,
   birthTime: '',
+  birthTimezone: 'UTC+8',
+  birthDateUtc8: '',
+  birthDateLunarUtc8: '',
+  birthTimeUtc8: '',
   birthLocation: '',
   currentCity: '',
   focusArea: 'overall',
@@ -177,6 +196,20 @@ export const useConsultationFlow = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('usdt');
   const [hasAskedFirstQuestion, setHasAskedFirstQuestion] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+
+  const synchronizeAuthenticatedUser = async () => {
+    const currentUser = await refreshSession();
+
+    if (currentUser) {
+      return currentUser;
+    }
+
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 80);
+    });
+
+    return refreshSession();
+  };
 
   const resetConsultationState = () => {
     const initialState = buildDefaultConsultationSession();
@@ -364,6 +397,55 @@ export const useConsultationFlow = () => {
     }
   }, [hasHydrated, isLoading, registration.contactValue, stage, user]);
 
+  useEffect(() => {
+    if (!hasHydrated || isLoading || !user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const restoreLatestConsultation = async () => {
+      try {
+        const payload = await fetchJson<LatestConsultationResponse>('/api/consultations');
+
+        if (cancelled || !payload.consultation) {
+          return;
+        }
+
+        startTransition(() => {
+          setProfile(payload.consultation!.profile);
+          setConsultationId(payload.consultation!.id);
+          setConversation(
+            payload.messages.length > 0
+              ? payload.messages
+              : [buildOpeningGreeting(payload.consultation!.profile)]
+          );
+          setStage(payload.messages.length > 0 || payload.consultation!.profile.displayName ? 'chat' : 'intake');
+          setActiveAccount({
+            displayName: user.displayName,
+            contactType: user.contactType,
+            contactValue: user.contactValue
+          });
+          setSavePreference('save');
+          setFreeTurnsRemaining(Math.max(0, 3 - payload.consultation!.freeTurnsUsed));
+          setPaymentRequired(!payload.consultation!.unlocked && payload.consultation!.freeTurnsUsed >= 3);
+          setPaymentModalOpen(false);
+          setRequiresRegistrationForPayment(false);
+          setIsPaid(Boolean(payload.consultation!.unlocked));
+          setHasAskedFirstQuestion(payload.messages.some((message) => message.role === 'user'));
+        });
+      } catch {
+        // Keep the current in-memory state if no saved consultation is available.
+      }
+    };
+
+    void restoreLatestConsultation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, isLoading, user]);
+
   const saveProfile = async () => {
     setIsSubmitting(true);
     setErrorMessage('');
@@ -388,7 +470,7 @@ export const useConsultationFlow = () => {
       let refreshedUser = user;
 
       if (!user && effectiveSavePreference === 'save') {
-        refreshedUser = await refreshSession();
+        refreshedUser = await synchronizeAuthenticatedUser();
       }
 
       startTransition(() => {
@@ -448,7 +530,7 @@ export const useConsultationFlow = () => {
         }
       );
 
-      const refreshedUser = user ? await refreshSession() : null;
+      const refreshedUser = user ? await synchronizeAuthenticatedUser() : null;
 
       startTransition(() => {
         setProfile(payload.profile);
@@ -669,7 +751,7 @@ export const useConsultationFlow = () => {
         }
       );
 
-      const refreshedUser = await refreshSession();
+      const refreshedUser = await synchronizeAuthenticatedUser();
 
       startTransition(() => {
         const nextAccount =
