@@ -1,0 +1,17 @@
+[Unit]
+Description=Fortune AI Next.js Application
+After=network.target
+
+[Service]
+Type=simple
+User=fortune
+Group=fortune
+WorkingDirectory=/opt/fortune-ai/app
+EnvironmentFile=/etc/fortune-ai/fortune-ai.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env npm start -- --hostname 0.0.0.0 --port 3000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

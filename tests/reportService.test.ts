@@ -53,9 +53,9 @@ describe('ReportService', () => {
     const service = new ReportService();
     const preview = await service.createPreview(consultation, consultation.initialQuestion || '', evidence);
 
-    expect(preview.headline).toContain('我先替你看这件事的势');
+    expect(preview.summary).toContain('命理依据');
     expect(preview.evidence).toHaveLength(1);
-    expect(preview.guidance).toHaveLength(3);
+    expect(preview.guidance).toHaveLength(2);
   });
 
   it('requests supporting photos for face-reading questions', async () => {
@@ -65,5 +65,16 @@ describe('ReportService', () => {
     expect(preview.headline).toContain('面相');
     expect(preview.details[0]).toContain('正脸');
     expect(preview.evidence).toHaveLength(0);
+  });
+
+  it('maps outfit follow-up questions to scene-specific fallback advice', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const service = new ReportService();
+    const reply = await service.createFollowUpAnswer(consultation, '我明天穿什么比较合适？', evidence);
+
+    expect(reply.headline).toContain('穿搭');
+    expect(reply.details.join('\n')).toContain('颜色与风格');
+    expect(reply.details.join('\n')).toContain('配饰');
+    expect(reply.guidance[0]).toContain('注意事项');
   });
 });

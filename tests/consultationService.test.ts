@@ -7,6 +7,7 @@ describe('ConsultationService', () => {
   const dataDirectory = path.join(tempRoot, 'data');
   const knowledgeDirectory = path.join(tempRoot, 'knowledge');
   const databasePath = path.join(tempRoot, 'fortune_ai.db');
+  const ragIndexPath = path.join(tempRoot, 'rag-index.json');
 
   beforeEach(async () => {
     await fs.rm(tempRoot, { recursive: true, force: true });
@@ -40,6 +41,7 @@ describe('ConsultationService', () => {
     process.env.FORTUNE_DATA_DIR = dataDirectory;
     process.env.FORTUNE_KNOWLEDGE_DIR = knowledgeDirectory;
     process.env.FORTUNE_DATABASE_PATH = databasePath;
+    process.env.FORTUNE_RAG_INDEX_PATH = ragIndexPath;
     delete process.env.GEMINI_API_KEY;
     jest.resetModules();
   });
@@ -49,6 +51,7 @@ describe('ConsultationService', () => {
     delete process.env.FORTUNE_DATA_DIR;
     delete process.env.FORTUNE_KNOWLEDGE_DIR;
     delete process.env.FORTUNE_DATABASE_PATH;
+    delete process.env.FORTUNE_RAG_INDEX_PATH;
   });
 
   it('runs the preview -> direct follow-up flow', async () => {

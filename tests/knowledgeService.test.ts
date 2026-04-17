@@ -4,17 +4,20 @@ import path from 'node:path';
 
 describe('KnowledgeService', () => {
   const tempKnowledgeDirectory = path.join(os.tmpdir(), 'fortune-ai-knowledge-test');
+  const tempRagIndexPath = path.join(os.tmpdir(), 'fortune-ai-knowledge-test-index.json');
 
   beforeEach(async () => {
     await fs.rm(tempKnowledgeDirectory, { recursive: true, force: true });
     await fs.mkdir(tempKnowledgeDirectory, { recursive: true });
     process.env.FORTUNE_KNOWLEDGE_DIR = tempKnowledgeDirectory;
+    process.env.FORTUNE_RAG_INDEX_PATH = tempRagIndexPath;
     jest.resetModules();
   });
 
   afterEach(async () => {
     await fs.rm(tempKnowledgeDirectory, { recursive: true, force: true });
     delete process.env.FORTUNE_KNOWLEDGE_DIR;
+    delete process.env.FORTUNE_RAG_INDEX_PATH;
   });
 
   it('prefers evidence that matches the user focus and question', async () => {

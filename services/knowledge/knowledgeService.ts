@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '@/lib/env';
 import { scoreContentAgainstTokens, extractTokens } from '@/services/knowledge/scoring';
+import { buildCurrentTimeContext } from '@/services/metaphysics-rag/currentTimeContext';
+import { retrieveKnowledge } from '@/services/metaphysics-rag/retrieveKnowledge';
 import type { FocusArea, UserProfileInput } from '@/types/consultation';
 import type { KnowledgeChunk, KnowledgeDocument, KnowledgeEvidence } from '@/types/knowledge';
 
@@ -143,6 +145,12 @@ const buildSearchTokens = (profile: UserProfileInput, question: string): string[
 
 export class KnowledgeService {
   async retrieveEvidence(profile: UserProfileInput, question: string): Promise<KnowledgeEvidence[]> {
+    const ragResults = await retrieveKnowledge(profile, question, 6, buildCurrentTimeContext(question)).catch(() => []);
+
+    if (ragResults.length > 0) {
+      return ragResults;
+    }
+
     const tokens = buildSearchTokens(profile, question);
     const chunks = await loadKnowledgeChunks();
 

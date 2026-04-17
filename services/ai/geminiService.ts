@@ -73,9 +73,26 @@ const extractOpenAiCompatText = (payload: any): string => {
   return '';
 };
 
+const extractJsonCandidate = (value: string): string => {
+  const fencedMatch = value.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim();
+  }
+
+  const firstBrace = value.indexOf('{');
+  const lastBrace = value.lastIndexOf('}');
+
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return value.slice(firstBrace, lastBrace + 1).trim();
+  }
+
+  return value.trim();
+};
+
 const safeJsonParse = <T>(value: string): T | null => {
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(extractJsonCandidate(value)) as T;
   } catch {
     return null;
   }
@@ -105,7 +122,7 @@ export class GeminiService {
           {
             role: 'system',
             content:
-              'You are a structured assistant for a Chinese fortune consultation product. Always follow the requested output format exactly.'
+              'You are a structured assistant for a Chinese fortune consultation product. Always follow the requested output format exactly. Prefer concise, highly readable Chinese answers with short sections, light emoji usage, and scan-friendly structure instead of long dense paragraphs.'
           },
           {
             role: 'user',
@@ -184,6 +201,24 @@ export class GeminiService {
     }
 
     return this.generateWithGemini(options);
+  }
+
+  async generateStructuredJson<T>(prompt: string, fallbackFactory: () => T): Promise<T> {
+    if (!this.isEnabled()) {
+      return fallbackFactory();
+    }
+
+    try {
+      const raw = await this.generate({
+        prompt,
+        responseMimeType: 'application/json'
+      });
+      const parsed = safeJsonParse<T>(raw);
+      return parsed || fallbackFactory();
+    } catch (error) {
+      console.error(error);
+      return fallbackFactory();
+    }
   }
 
   async generateFortuneAnswer(

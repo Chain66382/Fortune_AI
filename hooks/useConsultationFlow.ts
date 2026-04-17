@@ -57,6 +57,7 @@ interface LatestConsultationResponse {
     role: 'user' | 'assistant';
     content: string;
     headline?: string;
+    debug?: AnswerPayload['debug'];
   }>;
 }
 
@@ -64,6 +65,7 @@ interface ConversationItem {
   role: 'user' | 'assistant';
   content: string;
   headline?: string;
+  debug?: AnswerPayload['debug'];
 }
 
 interface ActiveAccountSession {
@@ -142,7 +144,8 @@ const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> 
 const answerToConversation = (answer: AnswerPayload): ConversationItem => ({
   role: 'assistant',
   headline: answer.headline,
-  content: [answer.summary, ...answer.details, ...answer.guidance].join('\n')
+  content: [answer.summary, ...answer.details, ...answer.guidance].filter(Boolean).join('\n\n'),
+  debug: answer.debug
 });
 
 export const buildDefaultConsultationSession = () => ({
@@ -173,7 +176,7 @@ export const buildDefaultConsultationSession = () => ({
 });
 
 export const useConsultationFlow = () => {
-  const { user, refreshSession, isLoading } = useAuth();
+  const { user, login, refreshSession, isLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfileInput>(defaultProfile);
   const [followUpQuestion, setFollowUpQuestion] = useState('');
   const [savePreference, setSavePreference] = useState<SavePreference>('do_not_save');
@@ -210,6 +213,9 @@ export const useConsultationFlow = () => {
 
     return refreshSession();
   };
+
+  const hasMinimumProfileForConsultation = (nextProfile: UserProfileInput) =>
+    Boolean(nextProfile.displayName.trim() && nextProfile.birthDate.trim());
 
   const resetConsultationState = () => {
     const initialState = buildDefaultConsultationSession();
@@ -452,6 +458,27 @@ export const useConsultationFlow = () => {
 
     try {
       const effectiveSavePreference: SavePreference = user ? 'save' : savePreference;
+
+      if (
+        !user &&
+        effectiveSavePreference === 'save' &&
+        registration.contactValue.trim() &&
+        registration.password.trim() &&
+        !hasMinimumProfileForConsultation(profile)
+      ) {
+        const authenticatedUser = await login(registration);
+
+        startTransition(() => {
+          setActiveAccount({
+            displayName: authenticatedUser.displayName,
+            contactType: authenticatedUser.contactType,
+            contactValue: authenticatedUser.contactValue
+          });
+        });
+
+        return;
+      }
+
       const consultation = await fetchJson<{ id: string }>('/api/consultations', {
         method: 'POST',
         headers: {

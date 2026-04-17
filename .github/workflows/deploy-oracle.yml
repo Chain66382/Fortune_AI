@@ -1,0 +1,35 @@
+name: Deploy to Oracle VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_key
+          chmod 600 ~/.ssh/oracle_key
+          ssh-keyscan -H "$ORACLE_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy application
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_APP_DIR: ${{ secrets.ORACLE_APP_DIR }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/oracle_key "${ORACLE_USER}@${ORACLE_HOST}" \
+            "export ORACLE_APP_DIR='${ORACLE_APP_DIR:-/opt/fortune-ai/app}' APP_GIT_SHA='${GITHUB_SHA}' && bash -s" \
+            < deploy/oracle/deploy-on-server.sh

@@ -71,6 +71,7 @@ export class DatabaseClient {
         headline TEXT,
         content TEXT NOT NULL,
         evidence_json TEXT NOT NULL,
+        debug_json TEXT,
         created_at TEXT NOT NULL
       );
 
@@ -102,6 +103,7 @@ export class DatabaseClient {
     this.ensureColumn('users', 'consultation_credits INTEGER NOT NULL DEFAULT 0');
     this.ensureColumn('users', 'membership_plan TEXT');
     this.ensureColumn('users', 'membership_expires_at TEXT');
+    this.ensureColumn('messages', 'debug_json TEXT');
     this.ensureColumn('payments', "payment_method TEXT NOT NULL DEFAULT 'wechat_pay'");
     this.ensureColumn('payments', "plan_code TEXT NOT NULL DEFAULT 'consultation_pack_1000'");
     this.ensureColumn('payments', "plan_name TEXT NOT NULL DEFAULT '1000 次咨询'");

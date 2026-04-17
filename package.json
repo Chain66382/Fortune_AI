@@ -9,11 +9,14 @@
     "lint": "eslint .",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "ingest": "node --experimental-strip-types scripts/ingest-knowledge.ts"
+    "ingest": "node --experimental-strip-types scripts/ingest-knowledge.ts",
+    "rag:ingest": "tsx scripts/build-rag-index.ts",
+    "rag:verify": "tsx scripts/verify-rag-sources.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.8.0",
+    "lunar-typescript": "^1.8.6",
     "next": "16.2.3",
     "pdf-parse": "^2.4.5",
     "react": "19.2.5",
@@ -28,6 +31,7 @@
     "eslint-config-next": "16.2.3",
     "jest": "30.3.0",
     "ts-jest": "29.4.5",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
 }

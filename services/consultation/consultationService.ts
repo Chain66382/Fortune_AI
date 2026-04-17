@@ -375,9 +375,10 @@ export class ConsultationService {
       consultationId: consultation.id,
       role: 'assistant',
       headline: previewAnswer.headline,
-      content: [previewAnswer.summary, ...previewAnswer.details, ...previewAnswer.guidance].join('\n'),
+      content: [previewAnswer.summary, ...previewAnswer.details, ...previewAnswer.guidance].join('\n\n'),
       createdAt: updatedConsultation.updatedAt,
-      evidence
+      evidence,
+      debug: previewAnswer.debug
     };
 
     await this.messageRepository.create(userMessage);
@@ -537,9 +538,10 @@ export class ConsultationService {
       consultationId: id,
       role: 'assistant',
       headline: answer.headline,
-      content: [answer.summary, ...answer.details, ...answer.guidance].join('\n'),
+      content: [answer.summary, ...answer.details, ...answer.guidance].join('\n\n'),
       createdAt: now,
-      evidence
+      evidence,
+      debug: answer.debug
     };
 
     await this.messageRepository.create(userMessage);

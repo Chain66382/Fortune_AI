@@ -1,4 +1,4 @@
-import type { KnowledgeEvidence } from '@/types/knowledge';
+import type { KnowledgeEvidence } from './knowledge';
 
 export type ConsultationStatus =
   | 'draft'
@@ -72,6 +72,56 @@ export interface AnswerPayload {
   details: string[];
   guidance: string[];
   evidence: KnowledgeEvidence[];
+  debug?: {
+    userProfile: {
+      displayName: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      calendarType: CalendarType;
+      birthLocation: string;
+      normalizedUtc8: {
+        birthDate: string;
+        birthDateLunar: string;
+        birthTime: string;
+      };
+    };
+    currentTimeContext?: {
+      currentDate: string;
+      currentYear: number;
+      currentMonth: number;
+      currentDay: number;
+      timeZone: string;
+      userQuestionTimeScope: 'today' | 'tomorrow' | 'this_year' | 'next_year' | 'specific_date' | 'unspecified';
+    };
+    bazi: {
+      status: 'ready' | 'pending' | 'error';
+      value: string;
+      notes: string;
+      pillars?: {
+        year: string;
+        month: string;
+        day: string;
+        hour: string;
+      };
+      wuxingSummary?: string;
+      summary?: string;
+    };
+    retrievedDocuments: Array<{
+      sourceFile: string;
+      sectionTitle: string;
+      score: number;
+      snippet: string;
+      referencedYear?: number | null;
+      timeReference?: 'past' | 'current' | 'future' | 'unknown';
+      timeAdjustment?: {
+        action: 'none' | 'downranked' | 'filtered_as_historical';
+        reason?: string;
+      };
+    }>;
+    promptPreview: string;
+    modelOutput?: Record<string, unknown>;
+  };
 }
 
 export interface ConsultationReport {
@@ -113,6 +163,7 @@ export interface ConsultationMessage {
   content: string;
   createdAt: string;
   evidence: KnowledgeEvidence[];
+  debug?: AnswerPayload['debug'];
 }
 
 export interface OrderIntentInput {

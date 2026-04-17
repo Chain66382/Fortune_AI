@@ -18,6 +18,7 @@ import { PAYMENT_METHOD_OPTIONS } from '@/lib/paymentMethods';
 import { PAYMENT_PLAN_OPTIONS, formatMoney } from '@/lib/paymentPlans';
 import { normalizeBirthProfileToUtc8, TIMEZONE_OPTIONS } from '@/lib/timezones';
 import type {
+  AnswerPayload,
   AssetCategory,
   CalendarType,
   GenderOption,
@@ -102,6 +103,115 @@ const inferRequestedAssetCategory = (
 
   return null;
 };
+
+interface RichTextBlock {
+  type: 'section' | 'paragraph';
+  title?: string;
+  lines: string[];
+}
+
+const renderDebugPanel = (debug?: AnswerPayload['debug']) => {
+  if (!debug) {
+    return null;
+  }
+
+  return (
+    <details className={styles.debugPanel}>
+      <summary className={styles.debugSummary}>开发调试信息</summary>
+      <div className={styles.debugSection}>
+        <strong>命理资料</strong>
+        <p>
+          {debug.userProfile.displayName} / {debug.userProfile.birthDate} / {debug.userProfile.birthTime || '未提供'} /{' '}
+          {debug.userProfile.timezone} / {debug.userProfile.calendarType} / {debug.userProfile.birthLocation || '未提供'}
+        </p>
+      </div>
+      <div className={styles.debugSection}>
+        <strong>八字读取</strong>
+        <p>{debug.bazi.value}</p>
+        <p>{debug.bazi.notes}</p>
+      </div>
+      <div className={styles.debugSection}>
+        <strong>检索片段</strong>
+        <ul className={styles.debugList}>
+          {debug.retrievedDocuments.map((document, index) => (
+            <li key={`${document.sourceFile}-${document.sectionTitle}-${index}`}>
+              <span>
+                {document.sourceFile} / {document.sectionTitle} / {document.score}
+              </span>
+              <p>{document.snippet}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={styles.debugSection}>
+        <strong>Prompt 关键部分</strong>
+        <pre className={styles.debugPrompt}>{debug.promptPreview}</pre>
+      </div>
+    </details>
+  );
+};
+
+const emojiSectionPattern =
+  /^(👉|📍|💼|💡|⚠️|🚀|🔎|✨|🧭|🌙|📘|🪞|🔔|🪙|❤️|💬)\s*/u;
+
+const parseConversationContent = (content: string): RichTextBlock[] =>
+  content
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .reduce<RichTextBlock[]>((blocks, block) => {
+      const lines = block
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (lines.length === 0) {
+        return blocks;
+      }
+
+      const firstLine = lines[0];
+
+      if (emojiSectionPattern.test(firstLine)) {
+        blocks.push({
+          type: 'section' as const,
+          title: firstLine,
+          lines: lines.slice(1)
+        });
+
+        return blocks;
+      }
+
+      blocks.push({
+        type: 'paragraph' as const,
+        lines
+      });
+
+      return blocks;
+    }, []);
+
+const renderConversationContent = (content: string) =>
+  parseConversationContent(content).map((block, blockIndex) => {
+    const bulletLines = block.lines.filter((line) => /^[-•]\s+/.test(line));
+    const plainLines = block.lines.filter((line) => !/^[-•]\s+/.test(line));
+
+    return (
+      <section key={`${block.type}-${blockIndex}`} className={styles.messageSection}>
+        {block.title ? <h4 className={styles.messageSectionTitle}>{block.title}</h4> : null}
+        {plainLines.map((line, lineIndex) => (
+          <p key={`paragraph-${lineIndex}`} className={styles.messageParagraph}>
+            {line}
+          </p>
+        ))}
+        {bulletLines.length > 0 ? (
+          <ul className={styles.messageListItems}>
+            {bulletLines.map((line, lineIndex) => (
+              <li key={`bullet-${lineIndex}`}>{line.replace(/^[-•]\s+/, '')}</li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+    );
+  });
 
 const normalizeProfileDraft = (profile: UserProfileInput): UserProfileInput =>
   normalizeBirthProfileToUtc8(profile);
@@ -1044,7 +1154,8 @@ export const FortuneExperience = () => {
                       className={message.role === 'assistant' ? styles.assistantBubble : styles.userBubble}
                     >
                       {message.headline ? <strong>{message.headline}</strong> : null}
-                      <p>{message.content}</p>
+                      <div className={styles.messageContent}>{renderConversationContent(message.content)}</div>
+                      {message.role === 'assistant' ? renderDebugPanel(message.debug) : null}
                     </article>
                   ))}
                 </div>

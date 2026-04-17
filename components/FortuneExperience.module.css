@@ -615,6 +615,7 @@
   border-radius: 16px;
   padding: 12px 14px;
   white-space: pre-wrap;
+  max-width: 92%;
 }
 
 .assistantBubble {
@@ -632,11 +633,105 @@
 .assistantBubble strong,
 .userBubble strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
   font-family: var(--font-display), serif;
-  font-size: 0.92rem;
+  font-size: 1.04rem;
   font-weight: 600;
   color: var(--cream);
+}
+
+.messageContent {
+  max-width: 760px;
+}
+
+.messageSection {
+  margin-bottom: 14px;
+}
+
+.messageSection:last-child {
+  margin-bottom: 0;
+}
+
+.messageSectionTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-display), serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cream);
+}
+
+.messageParagraph {
+  margin: 0 0 12px;
+  color: var(--muted-text);
+  line-height: 1.68;
+}
+
+.messageParagraph:last-child {
+  margin-bottom: 0;
+}
+
+.messageListItems {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted-text);
+  line-height: 1.65;
+}
+
+.messageListItems li + li {
+  margin-top: 8px;
+}
+
+.debugPanel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(214, 180, 116, 0.24);
+}
+
+.debugSummary {
+  cursor: pointer;
+  color: rgba(214, 180, 116, 0.88);
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
+}
+
+.debugSection {
+  margin-top: 12px;
+}
+
+.debugSection strong {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(247, 239, 227, 0.92);
+  font-size: 0.88rem;
+}
+
+.debugSection p {
+  margin: 0 0 6px;
+  color: rgba(247, 239, 227, 0.7);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.debugList {
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(247, 239, 227, 0.72);
+}
+
+.debugList li {
+  margin-bottom: 8px;
+}
+
+.debugPrompt {
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(11, 9, 7, 0.68);
+  color: rgba(247, 239, 227, 0.78);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .composer {
