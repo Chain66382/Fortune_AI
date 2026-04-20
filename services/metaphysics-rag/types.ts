@@ -102,17 +102,66 @@ export interface SceneAnswerSection {
   content: string[];
 }
 
-export interface SceneAnswerShape {
-  title: string;
+export type QuestionScene =
+  | 'outfit'
+  | 'food'
+  | 'location'
+  | 'schedule'
+  | 'career'
+  | 'relationship'
+  | 'emotional'
+  | 'general';
+
+export interface DecisionStrategy {
+  primarySource: 'image' | 'metaphysics' | 'rag';
+  weights: {
+    image: number;
+    metaphysics: number;
+    rag: number;
+  };
+  reasoningMode: 'visual-first' | 'metaphysics-first' | 'hybrid-judgment' | 'knowledge-first';
+}
+
+export interface StructuredImageAnalysis {
+  spaceType: string;
+  mainObjects: string[];
+  deskPosition: string;
+  windowPosition: string;
+  doorPosition: string;
+  lighting: string;
+  clutterLevel: string;
+  orientationGuess: string;
+  fengshuiObservations: string[];
+}
+
+export interface AttachmentAnalysisSummary {
+  imageId: string;
+  fileName: string;
+  category: string;
   summary: string;
+  spatialHints: string[];
+  structured: StructuredImageAnalysis;
+}
+
+export interface AttachmentAnalysisResult {
+  overallSummary: string;
+  imageSummaries: AttachmentAnalysisSummary[];
+}
+
+export interface PremiumAnswerShape {
+  title: string;
+  one_line_conclusion: string;
   metaphysics_basis: string;
-  sections: SceneAnswerSection[];
-  cautions: string[];
-  closing: string;
+  actionable_advice: string[];
+  timing_window: string[];
+  risks: string[];
+  closing_summary: string;
 }
 
 export interface AnswerQuestionInput {
   consultation: ConsultationRecord;
   question: string;
   retrievedDocs: RagSearchResult[];
+  attachedImages?: ConsultationRecord['profile']['uploadedAssets'];
+  attachmentAnalysis?: AttachmentAnalysisResult;
 }

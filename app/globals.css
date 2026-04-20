@@ -6,6 +6,8 @@
   --accent-gold: #d6b06f;
   --accent-ruby: #8b2d22;
   --accent-jade: #456f5d;
+  --font-display: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "Times New Roman", serif;
+  --font-body: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "PingFang SC", serif;
 }
 
 * {

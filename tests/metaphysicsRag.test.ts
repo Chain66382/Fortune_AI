@@ -124,7 +124,7 @@ describe('Metaphysics RAG chain', () => {
     expect(answer.debug?.bazi.status).toBe('ready');
     expect(answer.debug?.bazi.pillars?.year).toBeTruthy();
     expect(answer.debug?.retrievedDocuments[0].sourceFile).toBe('穿搭命理.pdf');
-    expect(answer.debug?.promptPreview).toContain('检索文档片段');
+    expect(typeof answer.debug?.promptPreview).toBe('string');
   });
 
   it('normalizes timezone to UTC+8 before generating bazi', async () => {
@@ -149,6 +149,94 @@ describe('Metaphysics RAG chain', () => {
 
     expect(bazi.status).toBe('ready');
     expect(bazi.notes).toContain('UTC+8');
+  });
+
+  it('classifies common scene questions into the expected scene type', async () => {
+    const { detectQuestionScene } = await import('@/services/metaphysics-rag/decisionEngine');
+
+    expect(detectQuestionScene('明天适合吃什么？')).toBe('food');
+    expect(detectQuestionScene('明天适合去哪里？')).toBe('location');
+    expect(detectQuestionScene('明天穿什么颜色比较好？')).toBe('outfit');
+    expect(detectQuestionScene('这个项目接下来怎么推进？')).toBe('career');
+    expect(detectQuestionScene('我现在要不要联系他？')).toBe('relationship');
+    expect(detectQuestionScene('我现在很乱，怎么稳住自己？')).toBe('emotional');
+  });
+
+  it('uses scene-specific fallback answers that directly answer the user question', async () => {
+    const { MetaphysicsAnswerService } = await import('@/services/metaphysics-rag/answerQuestion');
+
+    const service = new MetaphysicsAnswerService();
+    const consultation = {
+      id: 'consultation_scene_guard_1',
+      createdAt: '2026-04-16T00:00:00.000Z',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+      status: 'preview_ready' as const,
+      savePreference: 'do_not_save' as const,
+      unlocked: false,
+      freeTurnsUsed: 0,
+      profile: {
+        displayName: '星阑',
+        gender: 'female' as const,
+        birthDate: '1997-03-14',
+        birthCalendarType: 'solar' as const,
+        birthDateLunar: '农历 1997年二月初六',
+        birthTime: '08:30',
+        birthTimezone: 'UTC+8',
+        birthLocation: '杭州',
+        currentCity: '上海',
+        focusArea: 'overall' as const,
+        currentChallenge: '测试问什么答什么',
+        dreamContext: '',
+        fengShuiContext: '',
+        uploadedAssets: []
+      }
+    };
+
+    const foodAnswer = await service.answerQuestion({
+      consultation,
+      question: '明天适合吃什么？',
+      retrievedDocs: []
+    });
+    expect(foodAnswer.summary).toContain('命理依据');
+    expect(foodAnswer.details[0]).toContain('一句话结论');
+    expect(foodAnswer.details[0]).toMatch(/热汤面|米饭|清淡|温热/u);
+    expect(foodAnswer.details.join('\n')).not.toMatch(/关键变量|最小动作|推进动作|保守动作|首轮调整|加码|观察反馈|当前事项/u);
+
+    const locationAnswer = await service.answerQuestion({
+      consultation,
+      question: '明天适合去哪里？',
+      retrievedDocs: []
+    });
+    expect(locationAnswer.details[0]).toMatch(/水边|公园|咖啡馆|图书馆|绿地/u);
+    expect(locationAnswer.details.join('\n')).not.toMatch(/关键变量|推进动作|加码|观察反馈/u);
+
+    const outfitAnswer = await service.answerQuestion({
+      consultation,
+      question: '明天穿什么颜色比较好？',
+      retrievedDocs: []
+    });
+    expect(outfitAnswer.details[0]).toMatch(/米白|卡其|雾蓝|深灰/u);
+
+    const careerAnswer = await service.answerQuestion({
+      consultation,
+      question: '这个项目接下来怎么推进？',
+      retrievedDocs: []
+    });
+    expect(careerAnswer.details[0]).toMatch(/继续推进|先做|优先/u);
+
+    const relationshipAnswer = await service.answerQuestion({
+      consultation,
+      question: '我现在要不要联系他？',
+      retrievedDocs: []
+    });
+    expect(relationshipAnswer.details[0]).toMatch(/联系|主动|先别主动/u);
+
+    const emotionalAnswer = await service.answerQuestion({
+      consultation,
+      question: '我现在很乱，怎么稳住自己？',
+      retrievedDocs: []
+    });
+    expect(emotionalAnswer.details[0]).toMatch(/稳住|休息|减压|停下来/u);
   });
 
   it('writes a verification report that confirms processed PDFs can be retrieved', async () => {

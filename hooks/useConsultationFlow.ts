@@ -4,11 +4,16 @@ import { startTransition, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type {
   AnswerPayload,
+  AssistantMessageStatus,
   AssetCategory,
   PaymentMethod,
   PaymentPlan,
+  ReasoningStep,
   RegistrationInput,
   SavePreference,
+  ConsultationStageEvent,
+  ConsultationStageKey,
+  ConsultationStreamEvent,
   UploadedAsset,
   UserProfileInput
 } from '@/types/consultation';
@@ -35,6 +40,17 @@ interface AssetAttachResponse {
   uploadedAssets: UploadedAsset[];
 }
 
+interface UploadFilesResponse {
+  success: boolean;
+  files: Array<UploadedAsset & { status: 'success'; clientId?: string }>;
+  failed: Array<{
+    fileName: string;
+    error: string;
+    status: 'error';
+    clientId?: string;
+  }>;
+}
+
 interface CheckoutResponse {
   paid: boolean;
 }
@@ -54,24 +70,43 @@ interface LatestConsultationResponse {
     userId?: string;
   } | null;
   messages: Array<{
+    id?: string;
     role: 'user' | 'assistant';
     content: string;
     headline?: string;
+    uploadedAssets?: UploadedAsset[];
     debug?: AnswerPayload['debug'];
   }>;
 }
 
 interface ConversationItem {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   headline?: string;
   debug?: AnswerPayload['debug'];
+  uploadedAssets?: UploadedAsset[];
+  status?: AssistantMessageStatus;
+  reasoningSteps?: ReasoningStep[];
+  error?: string;
+  retryable?: boolean;
+  sourceQuestion?: string;
 }
 
 interface ActiveAccountSession {
   displayName: string;
   contactType: RegistrationInput['contactType'];
   contactValue: string;
+}
+
+interface PendingAttachment {
+  id: string;
+  fileName: string;
+  previewUrl: string;
+  category: AssetCategory;
+  status: 'uploading' | 'success' | 'error';
+  error?: string;
+  uploadedAsset?: UploadedAsset;
 }
 
 const defaultProfile: UserProfileInput = {
@@ -104,16 +139,132 @@ const defaultRegistration: RegistrationInput = {
 const STORAGE_KEY = 'fortune-ai-session-v2';
 const LOGOUT_RESET_EVENT = 'fortune-ai:auth-logout';
 
-const uploadAcknowledgement: Record<AssetCategory, string> = {
-  face: '面相资料已收到。继续告诉我你想重点看哪一面，我会顺着这条线往下看。',
-  palm: '手相资料已收到。继续告诉我你想重点看感情、事业，还是整体走势。',
-  space: '空间资料已收到。继续告诉我你更在意睡眠、财位、工作效率还是人际关系。',
-  other: '资料已收到。你可以继续补充问题，我会结合这些内容继续看。'
+const reasoningStepOrder: Array<{ key: ConsultationStageKey; label: string }> = [
+  { key: 'loading_profile', label: '正在读取用户资料' },
+  { key: 'normalizing_time', label: '正在标准化出生时间（UTC+8）' },
+  { key: 'generating_bazi', label: '正在生成八字 / 命理摘要' },
+  { key: 'retrieving_docs', label: '正在检索 RAG 文档' },
+  { key: 'building_prompt', label: '正在组织命理与上下文' },
+  { key: 'calling_llm', label: '正在综合命理与知识库内容' },
+  { key: 'generating_answer', label: '正在生成最终回答' }
+];
+
+const createLocalMessageId = () => `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const buildInitialReasoningSteps = (): ReasoningStep[] =>
+  reasoningStepOrder.map((step) => ({
+    key: step.key,
+    label: step.label,
+    status: 'pending'
+  }));
+
+const markReasoningStage = (steps: ReasoningStep[], stage: ConsultationStageEvent): ReasoningStep[] => {
+  const targetIndex = steps.findIndex((step) => step.key === stage.key);
+
+  if (targetIndex < 0) {
+    return steps;
+  }
+
+  return steps.map((step, index) => {
+    if (index < targetIndex) {
+      return { ...step, status: step.status === 'error' ? 'error' : 'done' };
+    }
+
+    if (index === targetIndex) {
+      return {
+        ...step,
+        label: stage.label || step.label,
+        detail: stage.detail || step.detail,
+        status: 'active'
+      };
+    }
+
+    return {
+      ...step,
+      status: step.status === 'error' ? 'error' : 'pending'
+    };
+  });
+};
+
+const finalizeReasoningSteps = (steps: ReasoningStep[], debug?: AnswerPayload['debug']): ReasoningStep[] => {
+  const docCount = debug?.retrievedDocuments.length || 0;
+
+  return steps.map((step) => {
+    switch (step.key) {
+      case 'loading_profile':
+        return {
+          ...step,
+          status: 'done',
+          detail: debug
+            ? `${debug.userProfile.displayName} / ${debug.userProfile.birthDate} ${debug.userProfile.birthTime || ''}`.trim()
+            : step.detail
+        };
+      case 'normalizing_time':
+        return {
+          ...step,
+          status: 'done',
+          detail: debug
+            ? `${debug.userProfile.normalizedUtc8.birthDate} ${debug.userProfile.normalizedUtc8.birthTime}`
+            : step.detail
+        };
+      case 'generating_bazi':
+        return {
+          ...step,
+          status: 'done',
+          detail: debug?.bazi.summary || debug?.bazi.notes || step.detail
+        };
+      case 'retrieving_docs':
+        return {
+          ...step,
+          status: 'done',
+          detail: docCount > 0 ? `已检索 ${docCount} 条命理依据` : step.detail
+        };
+      case 'building_prompt':
+        return {
+          ...step,
+          status: 'done',
+          detail: debug?.promptPreview ? '提示词上下文已整理完成' : step.detail
+        };
+      case 'calling_llm':
+        return {
+          ...step,
+          status: 'done',
+          detail: '命理摘要与检索证据已完成综合'
+        };
+      case 'generating_answer':
+        return {
+          ...step,
+          status: 'done',
+          detail: '回答已生成'
+        };
+      default:
+        return {
+          ...step,
+          status: 'done'
+        };
+    }
+  });
+};
+
+const failReasoningSteps = (steps: ReasoningStep[], error: string): ReasoningStep[] => {
+  const activeStep = steps.find((step) => step.status === 'active');
+
+  return steps.map((step) =>
+    step.key === activeStep?.key
+      ? {
+          ...step,
+          status: 'error',
+          detail: error
+        }
+      : step
+  );
 };
 
 const buildOpeningGreeting = (profile: UserProfileInput): ConversationItem => ({
+  id: createLocalMessageId(),
   role: 'assistant',
   headline: `${profile.displayName || '你的'}信息已经收下`,
+  status: 'done',
   content: [
     '现在你可以直接开始问你最想看的事情，我会先顺着你的问题把主线看清。',
     '如果后面需要面相、手相、居住空间或办公空间资料，我会在对话里直接告诉你该怎么拍、该补什么。'
@@ -130,9 +281,30 @@ const createHttpError = (payload: any, status: number) => {
   return error;
 };
 
+const parseJsonResponse = async <T>(response: Response): Promise<T> => {
+  const text = await response.text();
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (error) {
+    console.error('Failed to parse JSON response', {
+      status: response.status,
+      url: response.url,
+      body: text,
+      error
+    });
+    throw createHttpError(
+      {
+        error: response.ok ? '请求成功但返回格式异常，请稍后重试。' : '图片上传失败，请稍后重试。'
+      },
+      response.status || 500
+    );
+  }
+};
+
 const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
-  const payload = await response.json();
+  const payload = await parseJsonResponse<any>(response);
 
   if (!response.ok) {
     throw createHttpError(payload, response.status);
@@ -141,12 +313,59 @@ const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return payload as T;
 };
 
-const answerToConversation = (answer: AnswerPayload): ConversationItem => ({
+const answerToConversation = (answer: AnswerPayload, id = createLocalMessageId()): ConversationItem => ({
+  id,
   role: 'assistant',
   headline: answer.headline,
   content: [answer.summary, ...answer.details, ...answer.guidance].filter(Boolean).join('\n\n'),
-  debug: answer.debug
+  debug: answer.debug,
+  status: 'done',
+  reasoningSteps: finalizeReasoningSteps(buildInitialReasoningSteps(), answer.debug)
 });
+
+const createUserConversationItem = (content: string): ConversationItem => ({
+  id: createLocalMessageId(),
+  role: 'user',
+  content
+});
+
+const createAssistantPlaceholder = (
+  sourceQuestion: string,
+  uploadedAssets: UploadedAsset[] = [],
+  id = createLocalMessageId()
+): ConversationItem => ({
+  id,
+  role: 'assistant',
+  headline: '命理推演中',
+  content: '',
+  status: 'thinking',
+  reasoningSteps: buildInitialReasoningSteps(),
+  sourceQuestion,
+  uploadedAssets,
+  retryable: false
+});
+
+const hydrateStoredMessage = (
+  message: LatestConsultationResponse['messages'][number],
+  index: number
+): ConversationItem =>
+  message.role === 'assistant'
+    ? {
+        id: message.id || `history-assistant-${index}`,
+        role: 'assistant',
+        headline: message.headline,
+        content: message.content,
+        uploadedAssets: message.uploadedAssets,
+        debug: message.debug,
+        status: 'done',
+        reasoningSteps: finalizeReasoningSteps(buildInitialReasoningSteps(), message.debug)
+      }
+    : {
+        id: message.id || `history-user-${index}`,
+        role: 'user',
+        content: message.content,
+        uploadedAssets: message.uploadedAssets
+      };
 
 export const buildDefaultConsultationSession = () => ({
   profile: {
@@ -187,6 +406,7 @@ export const useConsultationFlow = () => {
   const [stage, setStage] = useState<'intake' | 'chat'>('intake');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingAssets, setIsUploadingAssets] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [freeTurnsRemaining, setFreeTurnsRemaining] = useState(3);
   const [paymentRequired, setPaymentRequired] = useState(false);
@@ -423,7 +643,7 @@ export const useConsultationFlow = () => {
           setConsultationId(payload.consultation!.id);
           setConversation(
             payload.messages.length > 0
-              ? payload.messages
+              ? payload.messages.map(hydrateStoredMessage)
               : [buildOpeningGreeting(payload.consultation!.profile)]
           );
           setStage(payload.messages.length > 0 || payload.consultation!.profile.displayName ? 'chat' : 'intake');
@@ -578,9 +798,11 @@ export const useConsultationFlow = () => {
         setConversation((currentConversation) => [
           ...currentConversation,
           {
+            id: createLocalMessageId(),
             role: 'assistant',
             headline: '个人信息已更新',
-            content: '新的资料已经同步，接下来我会按最新信息继续和你往下看。'
+            content: '新的资料已经同步，接下来我会按最新信息继续和你往下看。',
+            status: 'done'
           }
         ]);
       });
@@ -598,8 +820,220 @@ export const useConsultationFlow = () => {
     setPaymentModalOpen(true);
   };
 
-  const sendFollowUp = async () => {
-    if (!consultationId || !followUpQuestion.trim()) {
+  const revokeUploadPreview = (previewUrl: string) => {
+    if (previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  };
+
+  const removePendingAttachment = async (itemId: string) => {
+    const queueItem = pendingAttachments.find((item) => item.id === itemId);
+
+    if (!queueItem) {
+      return;
+    }
+
+    revokeUploadPreview(queueItem.previewUrl);
+    setPendingAttachments((currentItems) => currentItems.filter((item) => item.id !== itemId));
+
+    if (!queueItem.uploadedAsset || !consultationId) {
+      return;
+    }
+
+    try {
+      const payload = await fetchJson<AssetAttachResponse>(`/api/consultations/${consultationId}/assets`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assetId: queueItem.uploadedAsset.id
+        })
+      });
+
+      setProfile((currentProfile) => ({
+        ...currentProfile,
+        uploadedAssets: payload.uploadedAssets
+      }));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '图片移除失败，请稍后重试。');
+    }
+  };
+
+  const updateAssistantMessage = (
+    assistantId: string,
+    updater: (message: ConversationItem) => ConversationItem
+  ) => {
+    setConversation((currentConversation) =>
+      currentConversation.map((message) =>
+        message.id === assistantId && message.role === 'assistant' ? updater(message) : message
+      )
+    );
+  };
+
+  const fetchStream = async (
+    url: string,
+    body: Record<string, unknown>,
+    assistantId: string
+  ): Promise<{
+    answer?: AnswerPayload;
+    paymentRequired?: boolean;
+    requiresRegistrationForPayment?: boolean;
+    freeTurnsRemaining?: number;
+    paid?: boolean;
+  }> => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-fortune-stream': '1'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok || !response.body) {
+      const payload = await response.json().catch(() => ({ error: 'Request failed.' }));
+      throw createHttpError(payload, response.status);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let answer: AnswerPayload | undefined;
+    let meta: {
+      paymentRequired?: boolean;
+      requiresRegistrationForPayment?: boolean;
+      freeTurnsRemaining?: number;
+      paid?: boolean;
+    } = {};
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue;
+        }
+
+        const event = JSON.parse(line) as ConsultationStreamEvent;
+
+        if (event.type === 'stage') {
+          updateAssistantMessage(assistantId, (message) => ({
+            ...message,
+            status: 'thinking',
+            reasoningSteps: markReasoningStage(message.reasoningSteps || buildInitialReasoningSteps(), event.stage)
+          }));
+          continue;
+        }
+
+        if (event.type === 'answer') {
+          answer = event.answer;
+          meta = {
+            paymentRequired: event.paymentRequired,
+            requiresRegistrationForPayment: event.requiresRegistrationForPayment,
+            freeTurnsRemaining: event.freeTurnsRemaining,
+            paid: event.paid
+          };
+          updateAssistantMessage(assistantId, (message) => ({
+            ...message,
+            headline: event.answer.headline,
+            debug: event.answer.debug,
+            status: 'streaming'
+          }));
+          continue;
+        }
+
+        if (event.type === 'delta') {
+          updateAssistantMessage(assistantId, (message) => ({
+            ...message,
+            status: 'streaming',
+            content: `${message.content || ''}${event.delta}`
+          }));
+          continue;
+        }
+
+        if (event.type === 'error') {
+          throw createHttpError(
+            {
+              error: event.error,
+              details: event.details || null
+            },
+            event.status || 500
+          );
+        }
+
+        if (event.type === 'done') {
+          updateAssistantMessage(assistantId, (message) => ({
+            ...message,
+            headline: answer?.headline || message.headline,
+            debug: answer?.debug || message.debug,
+            content:
+              message.content ||
+              (answer
+                ? [answer.summary, ...answer.details, ...answer.guidance].filter(Boolean).join('\n\n')
+                : message.content),
+            status: 'done',
+            reasoningSteps: finalizeReasoningSteps(
+              message.reasoningSteps || buildInitialReasoningSteps(),
+              answer?.debug || message.debug
+            ),
+            retryable: false,
+            error: undefined
+          }));
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const event = JSON.parse(buffer) as ConsultationStreamEvent;
+
+      if (event.type === 'done') {
+        updateAssistantMessage(assistantId, (message) => ({
+          ...message,
+          headline: answer?.headline || message.headline,
+          debug: answer?.debug || message.debug,
+          content:
+            message.content ||
+            (answer
+              ? [answer.summary, ...answer.details, ...answer.guidance].filter(Boolean).join('\n\n')
+              : message.content),
+          status: 'done',
+          reasoningSteps: finalizeReasoningSteps(
+            message.reasoningSteps || buildInitialReasoningSteps(),
+            answer?.debug || message.debug
+          ),
+          retryable: false,
+          error: undefined
+        }));
+      }
+    }
+
+    return {
+      answer,
+      ...meta
+    };
+  };
+
+  const sendFollowUp = async (retryQuestion?: string, existingAssistantId?: string) => {
+    const pendingQuestion = retryQuestion || followUpQuestion;
+    let currentAssistantId = existingAssistantId;
+    const assistantRetryImages =
+      existingAssistantId && conversation.find((message) => message.id === existingAssistantId)?.uploadedAssets
+        ? (conversation.find((message) => message.id === existingAssistantId)?.uploadedAssets as UploadedAsset[])
+        : [];
+    const pendingImages = (existingAssistantId ? assistantRetryImages : pendingAttachments
+      .filter((item) => item.status === 'success' && item.uploadedAsset)
+      .map((item) => item.uploadedAsset!)) as UploadedAsset[];
+
+    if (!consultationId || (!pendingQuestion.trim() && pendingImages.length === 0)) {
       return;
     }
 
@@ -607,65 +1041,67 @@ export const useConsultationFlow = () => {
     setErrorMessage('');
 
     try {
-      const userQuestion = followUpQuestion.trim();
+      const userQuestion = pendingQuestion.trim();
+      const assistantId = existingAssistantId || createLocalMessageId();
+      currentAssistantId = assistantId;
+      const userMessageContent =
+        userQuestion || (pendingImages.length > 0 ? `已发送 ${pendingImages.length} 张图片，请结合图片继续分析。` : '');
+      console.debug('[chat.send] payload', {
+        consultationId,
+        content: userQuestion,
+        images: pendingImages.length
+      });
 
-      if (!hasAskedFirstQuestion) {
-        const preview = await fetchJson<PreviewResponse>(
-          `/api/consultations/${consultationId}/preview`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              question: userQuestion
-            })
-          }
-        );
+      if (!existingAssistantId) {
+        const userMessage = {
+          ...createUserConversationItem(userMessageContent),
+          uploadedAssets: pendingImages
+        };
+        const placeholder = createAssistantPlaceholder(userQuestion, pendingImages, assistantId);
 
         startTransition(() => {
-          setConversation((currentConversation) => [
-            ...currentConversation,
-            { role: 'user', content: userQuestion },
-            answerToConversation(preview.previewAnswer)
-          ]);
+          setConversation((currentConversation) => [...currentConversation, userMessage, placeholder]);
           setFollowUpQuestion('');
-          setFreeTurnsRemaining(preview.freeTurnsRemaining);
-          setPaymentRequired(preview.paymentRequired);
-          setRequiresRegistrationForPayment(preview.requiresRegistrationForPayment);
-          setIsPaid(preview.paid);
-          setHasAskedFirstQuestion(true);
+          setPendingAttachments((currentItems) => {
+            currentItems.forEach((item) => revokeUploadPreview(item.previewUrl));
+            return [];
+          });
         });
-
-        return;
+      } else {
+        updateAssistantMessage(existingAssistantId, (message) => ({
+          ...message,
+          headline: '命理推演中',
+          content: '',
+          debug: undefined,
+          error: undefined,
+          retryable: false,
+          status: 'thinking',
+          reasoningSteps: buildInitialReasoningSteps()
+        }));
       }
 
-      const response = await fetchJson<FollowUpResponse>(
-        `/api/consultations/${consultationId}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: userQuestion
-          })
-        }
-      );
+      const response = !hasAskedFirstQuestion
+        ? await fetchStream(
+            `/api/consultations/${consultationId}/preview`,
+            { question: userQuestion, images: pendingImages },
+            assistantId
+          )
+        : await fetchStream(
+            `/api/consultations/${consultationId}/messages`,
+            { message: userQuestion, images: pendingImages },
+            assistantId
+          );
 
       startTransition(() => {
-        setConversation((currentConversation) => [
-          ...currentConversation,
-          { role: 'user', content: userQuestion },
-          answerToConversation(response.answer)
-        ]);
-        setFollowUpQuestion('');
-        setFreeTurnsRemaining(response.freeTurnsRemaining);
-        setIsPaid(response.paid);
+        setFreeTurnsRemaining(response.freeTurnsRemaining ?? freeTurnsRemaining);
+        setPaymentRequired(Boolean(response.paymentRequired));
+        setRequiresRegistrationForPayment(Boolean(response.requiresRegistrationForPayment));
+        setIsPaid(Boolean(response.paid));
+        setHasAskedFirstQuestion(true);
       });
 
       if (response.paymentRequired) {
-        openPaymentModal(response.requiresRegistrationForPayment);
+        openPaymentModal(Boolean(response.requiresRegistrationForPayment));
       }
     } catch (error) {
       const typedError = error as Error & {
@@ -673,14 +1109,45 @@ export const useConsultationFlow = () => {
         status?: number;
       };
 
+      const errorText = typedError.message || 'Unable to send follow-up.';
+      const question = pendingQuestion.trim();
+      const targetAssistantId =
+        currentAssistantId ||
+        [...conversation].reverse().find((message) => message.role === 'assistant' && message.sourceQuestion === question)?.id;
+
+      if (targetAssistantId) {
+        updateAssistantMessage(targetAssistantId, (message) => ({
+          ...message,
+          status: 'error',
+          error: errorText,
+          retryable: true,
+          content: message.content || '这次推演没有顺利完成，请重试一次。',
+          uploadedAssets: message.uploadedAssets || pendingImages,
+          reasoningSteps: failReasoningSteps(
+            message.reasoningSteps || buildInitialReasoningSteps(),
+            errorText
+          )
+        }));
+      }
+
       if (typedError.status === 402 && typedError.details?.paymentRequired) {
         openPaymentModal(Boolean(typedError.details.requiresRegistrationForPayment));
       } else {
-        setErrorMessage(typedError.message || 'Unable to send follow-up.');
+        setErrorMessage(errorText);
       }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const retryAssistantMessage = async (assistantId: string) => {
+    const targetMessage = conversation.find((message) => message.id === assistantId && message.role === 'assistant');
+
+    if (!targetMessage?.sourceQuestion) {
+      return;
+    }
+
+    await sendFollowUp(targetMessage.sourceQuestion, assistantId);
   };
 
   const uploadAssetsToConversation = async (files: FileList | null, category: AssetCategory) => {
@@ -697,49 +1164,101 @@ export const useConsultationFlow = () => {
     setErrorMessage('');
 
     try {
-      const uploadedAssets: UploadedAsset[] = [];
+      const selectedFiles = Array.from(files);
+      const nextQueueItems = selectedFiles.map<PendingAttachment>((file) => ({
+        id: createLocalMessageId(),
+        fileName: file.name,
+        previewUrl: URL.createObjectURL(file),
+        category,
+        status: 'uploading'
+      }));
 
-      for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('category', category);
+      setPendingAttachments((currentItems) => [...currentItems, ...nextQueueItems]);
 
-        const uploadedAsset = await fetchJson<UploadedAsset>('/api/uploads', {
-          method: 'POST',
-          body: formData
-        });
-        uploadedAssets.push(uploadedAsset);
+      const formData = new FormData();
+      formData.append('category', category);
+      selectedFiles.forEach((file, index) => {
+        formData.append('files', file);
+        formData.append('clientIds', nextQueueItems[index].id);
+      });
+
+      const uploadResponse = await fetchJson<UploadFilesResponse>('/api/uploads', {
+        method: 'POST',
+        body: formData
+      });
+
+      const uploadedAssets = uploadResponse.files.map((file) => ({
+        ...file,
+        publicUrl: file.publicUrl || file.url,
+        url: file.url || file.publicUrl,
+        thumbnailUrl: file.thumbnailUrl || file.url || file.publicUrl
+      }));
+
+      let assetResponse: AssetAttachResponse | null = null;
+
+      if (uploadedAssets.length > 0) {
+        assetResponse = await fetchJson<AssetAttachResponse>(
+          `/api/consultations/${consultationId}/assets`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              uploadedAssets
+            })
+          }
+        );
       }
 
-      const assetResponse = await fetchJson<AssetAttachResponse>(
-        `/api/consultations/${consultationId}/assets`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            uploadedAssets
-          })
-        }
-      );
-
       startTransition(() => {
-        setProfile((currentProfile) => ({
-          ...currentProfile,
-          uploadedAssets: assetResponse.uploadedAssets
-        }));
-        setConversation((currentConversation) => [
-          ...currentConversation,
-          {
-            role: 'assistant',
-            headline: '资料已收到',
-            content: uploadAcknowledgement[category]
-          }
-        ]);
+        setPendingAttachments((currentItems) =>
+          currentItems.map((item) => {
+            const matchedSuccess = uploadedAssets.find((asset) => asset.id === item.uploadedAsset?.id || asset.clientId === item.id);
+            const matchedFailure = uploadResponse.failed.find((failed) => failed.clientId === item.id);
+
+            if (matchedSuccess) {
+              return {
+                ...item,
+                status: 'success',
+                error: undefined,
+                uploadedAsset: matchedSuccess
+              };
+            }
+
+            if (matchedFailure) {
+              return {
+                ...item,
+                status: 'error',
+                error: matchedFailure.error
+              };
+            }
+
+            return item;
+          })
+        );
+
+        if (assetResponse) {
+          setProfile((currentProfile) => ({
+            ...currentProfile,
+            uploadedAssets: assetResponse!.uploadedAssets
+          }));
+        }
       });
+
+      if (uploadResponse.failed.length > 0) {
+        const firstFailedIndex = selectedFiles.findIndex(
+          (file) => file.name === uploadResponse.failed[0]?.fileName
+        );
+        setErrorMessage(
+          uploadResponse.failed.length === 1
+            ? `第 ${firstFailedIndex + 1} 张图片上传失败：${uploadResponse.failed[0].error}`
+            : `${uploadResponse.failed.length} 张图片上传失败，请检查格式或大小后重试。`
+        );
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to upload assets.');
+      console.error(error);
+      setErrorMessage('图片上传失败，请稍后重试。');
     } finally {
       setIsUploadingAssets(false);
     }
@@ -805,6 +1324,7 @@ export const useConsultationFlow = () => {
         setConversation((currentConversation) => [
           ...currentConversation,
           {
+            id: createLocalMessageId(),
             role: 'assistant',
             headline: '深度咨询已开启',
             content: [
@@ -813,7 +1333,8 @@ export const useConsultationFlow = () => {
               '接下来的资料与聊天记录会自动保留。'
             ]
               .filter(Boolean)
-              .join('\n')
+              .join('\n'),
+            status: 'done'
           }
         ]);
       });
@@ -856,7 +1377,10 @@ export const useConsultationFlow = () => {
     saveProfile,
     updateSavedProfile,
     sendFollowUp,
+    retryAssistantMessage,
     uploadAssetsToConversation,
+    pendingAttachments,
+    removePendingAttachment,
     checkoutConsultation
   };
 };

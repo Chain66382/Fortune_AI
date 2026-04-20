@@ -1,8 +1,10 @@
 import { GeminiService } from '@/services/ai/geminiService';
 import { MetaphysicsAnswerService } from '@/services/metaphysics-rag/answerQuestion';
+import { detectQuestionScene } from '@/services/metaphysics-rag/decisionEngine';
 import type {
   AssetCategory,
   AnswerPayload,
+  ConsultationStageEvent,
   ConsultationRecord,
   ConsultationReport,
   LockedReportOutlineItem
@@ -54,37 +56,6 @@ const joinEvidence = (evidence: KnowledgeEvidence[]): string =>
 const uploadedCategories = (consultation: ConsultationRecord): AssetCategory[] =>
   Array.from(new Set(consultation.profile.uploadedAssets.map((asset) => asset.category)));
 
-const sceneMatchers: Array<{ scene: QuestionScene; matcher: RegExp }> = [
-  {
-    scene: 'outfit',
-    matcher: /穿什么|穿搭|衣服|颜色|配色|饰品|配饰|口红|妆容|发型|造型/u
-  },
-  {
-    scene: 'food',
-    matcher: /吃什么|饮食|吃饭|食物|口味|进补|喝什么|早餐|午餐|晚餐|宵夜/u
-  },
-  {
-    scene: 'location',
-    matcher: /坐哪里|座位|方位|位置|朝向|工位|办公室|空间|环境|房间|风水|布局/u
-  },
-  {
-    scene: 'schedule',
-    matcher: /今天|明天|后天|什么时候|安排|顺序|先做|适合做什么|宜不宜|该不该出门/u
-  },
-  {
-    scene: 'career',
-    matcher: /工作|事业|升职|合作|项目|机会|跳槽|面试|汇报|客户|老板/u
-  },
-  {
-    scene: 'relationship',
-    matcher: /感情|关系|暧昧|复合|联系|沟通|约会|对象|伴侣|相处/u
-  },
-  {
-    scene: 'emotional',
-    matcher: /情绪|焦虑|烦|低落|压力|状态|心态|稳定自己|失眠|紧张/u
-  }
-];
-
 const sceneDisplayLabels: Record<QuestionScene, string> = {
   outfit: '穿搭形象',
   food: '饮食选择',
@@ -94,11 +65,6 @@ const sceneDisplayLabels: Record<QuestionScene, string> = {
   relationship: '关系互动',
   emotional: '情绪状态',
   general: '综合判断'
-};
-
-const detectQuestionScene = (message: string): QuestionScene => {
-  const normalizedMessage = message.trim().toLowerCase();
-  return sceneMatchers.find((item) => item.matcher.test(normalizedMessage))?.scene || 'general';
 };
 
 const inferDayReference = (message: string): string => {
@@ -226,23 +192,23 @@ const buildFallbackSceneAnswer = (
       closing: '一句话记住：明天吃得温和、清稳，会比刺激型饮食更顺。'
     },
     location: {
-      title: `👉 ${kernel.dayReference}更适合选“稳中有互动”的位置`,
+      title: `👉 ${kernel.dayReference}更适合去安静、开阔、最好临近绿地或水边的地方`,
       sectionOne: {
-        heading: '位置选择',
+        heading: '地点方向',
         content: [
-          '从命理气场看，这个时点不太适合完全封闭或过于边角的位置。',
-          '建议你优先考虑视野开阔、背后有依靠、同时能接到信息流的位置。'
+          `从命理气场看，${kernel.dayReference}不太适合去过于封闭、嘈杂或动线很乱的地方。`,
+          '更适合优先选临水步道、公园边的咖啡馆、图书馆，或者采光稳定、能安静坐一会儿的场所。'
         ]
       },
       sectionTwo: {
         heading: '环境特征',
         content: [
-          '如果是工位或座位，适合偏安静但不脱离人群的位置，更利于判断和协作。',
-          '如果是空间选择，宜整洁、采光稳定、动线顺，不要太杂乱。'
+          '地点最好具备视野开阔、光线稳定、能坐得住这三个特点，这样更利于你把状态放稳。',
+          '如果明天要见人或谈事，选安静但不冷清的地方会比商场中庭、闹市餐厅更顺。'
         ]
       },
-      cautions: ['避免坐在强通道口或过于嘈杂的地方。', '不要为了图清静，把自己放到完全脱节的位置。'],
-      closing: '一句话记住：位置宜稳、宜通、宜有依靠。'
+      cautions: ['避免去强通道口、音乐太吵或人流过密的地方。', '不要为了图热闹临时改去节奏太乱的场所。'],
+      closing: '一句话记住：明天选对环境，比多跑几个地方更重要。'
     },
     schedule: {
       title: `👉 ${kernel.dayReference}更适合先稳后动，安排上要有顺序`,
@@ -369,10 +335,13 @@ const mapStructuredSceneAnswerToPayload = (
   evidence: KnowledgeEvidence[]
 ): AnswerPayload => ({
   headline: answer.title,
-  summary: `${answer.summary}\n\n🔮 命理依据\n${answer.metaphysics_basis}`,
-  details: answer.sections.map(
-    (section) => `${section.icon} ${section.heading}\n${section.content.map((item) => `- ${item}`).join('\n')}`
-  ),
+  summary: `命理依据\n${answer.metaphysics_basis}`,
+  details: [
+    `一句话结论\n${answer.title.replace(/^👉\s*/u, '')}`,
+    ...answer.sections.map(
+      (section) => `${section.icon} ${section.heading}\n${section.content.map((item) => `- ${item}`).join('\n')}`
+    )
+  ],
   guidance: [
     `⚠️ 注意事项\n${answer.cautions.map((item) => `- ${item}`).join('\n')}`,
     `✨ 收尾提醒\n${answer.closing}`
@@ -382,10 +351,13 @@ const mapStructuredSceneAnswerToPayload = (
 
 const buildAssetRequestAnswer = (
   message: string,
-  consultation: ConsultationRecord
+  consultation: ConsultationRecord,
+  attachedImages: ConsultationRecord['profile']['uploadedAssets'] = []
 ): AnswerPayload | null => {
   const normalizedMessage = message.toLowerCase();
-  const categories = uploadedCategories(consultation);
+  const categories = Array.from(
+    new Set([...uploadedCategories(consultation), ...attachedImages.map((asset) => asset.category)])
+  );
 
   const requestConfigs: Array<{
     category: AssetCategory;
@@ -530,22 +502,27 @@ export class ReportService {
   async createPreview(
     consultation: ConsultationRecord,
     question: string,
-    evidence: KnowledgeEvidence[]
+    evidence: KnowledgeEvidence[],
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>,
+    attachedImages: ConsultationRecord['profile']['uploadedAssets'] = []
   ): Promise<AnswerPayload> {
-    const assetRequestAnswer = buildAssetRequestAnswer(question, consultation);
-
-    if (assetRequestAnswer) {
-      return assetRequestAnswer;
+    const assetRequestAnswer = buildAssetRequestAnswer(question, consultation, attachedImages);
+    if (!assetRequestAnswer || attachedImages.length > 0) {
+      return this.metaphysicsAnswerService.answerQuestion(
+        {
+          consultation,
+          question,
+          retrievedDocs: evidence.map((item) => ({
+            ...item,
+            snippet: item.content.slice(0, 180)
+          })),
+          attachedImages
+        },
+        onStage
+      );
     }
 
-    return this.metaphysicsAnswerService.answerQuestion({
-      consultation,
-      question,
-      retrievedDocs: evidence.map((item) => ({
-        ...item,
-        snippet: item.content.slice(0, 180)
-      }))
-    });
+    return assetRequestAnswer;
   }
 
   async createFullReport(
@@ -606,21 +583,27 @@ ${joinEvidence(evidence)}
   async createFollowUpAnswer(
     consultation: ConsultationRecord,
     message: string,
-    evidence: KnowledgeEvidence[]
+    evidence: KnowledgeEvidence[],
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>,
+    attachedImages: ConsultationRecord['profile']['uploadedAssets'] = []
   ): Promise<AnswerPayload> {
-    const assetRequestAnswer = buildAssetRequestAnswer(message, consultation);
+    const assetRequestAnswer = buildAssetRequestAnswer(message, consultation, attachedImages);
 
     if (assetRequestAnswer) {
       return assetRequestAnswer;
     }
 
-    return this.metaphysicsAnswerService.answerQuestion({
-      consultation,
-      question: message,
-      retrievedDocs: evidence.map((item) => ({
-        ...item,
-        snippet: item.content.slice(0, 180)
-      }))
-    });
+    return this.metaphysicsAnswerService.answerQuestion(
+      {
+        consultation,
+        question: message,
+        retrievedDocs: evidence.map((item) => ({
+          ...item,
+          snippet: item.content.slice(0, 180)
+        })),
+        attachedImages
+      },
+      onStage
+    );
   }
 }

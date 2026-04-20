@@ -72,9 +72,31 @@ describe('ReportService', () => {
     const service = new ReportService();
     const reply = await service.createFollowUpAnswer(consultation, '我明天穿什么比较合适？', evidence);
 
-    expect(reply.headline).toContain('穿搭');
-    expect(reply.details.join('\n')).toContain('颜色与风格');
-    expect(reply.details.join('\n')).toContain('配饰');
+    expect(reply.summary).toContain('命理依据');
+    expect(reply.details[0]).toContain('一句话结论');
+    expect(reply.details.join('\n')).toMatch(/米白|卡其|雾蓝|深灰/u);
+    expect(reply.details.join('\n')).toMatch(/配饰|材质/u);
     expect(reply.guidance[0]).toContain('注意事项');
+  });
+
+  it('routes concrete scene questions to the matching fallback template', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const service = new ReportService();
+
+    const food = await service.createFollowUpAnswer(consultation, '明天适合吃什么？', evidence);
+    expect(food.summary).toContain('命理依据');
+    expect(food.details[0]).toContain('一句话结论');
+    expect(food.details.join('\n')).toMatch(/饮食|食物|汤|米饭/u);
+    expect(food.details.join('\n')).not.toMatch(/关键变量|最小动作|加码|观察反馈/u);
+
+    const location = await service.createFollowUpAnswer(consultation, '明天适合去哪里？', evidence);
+    expect(location.details[0]).toMatch(/去安静|绿地|水边|咖啡馆|图书馆/u);
+    expect(location.guidance[0]).toContain('注意事项');
+
+    const career = await service.createFollowUpAnswer(consultation, '这个项目接下来怎么推进？', evidence);
+    expect(career.details[0]).toMatch(/推进|先做|优先/u);
+
+    const relationship = await service.createFollowUpAnswer(consultation, '我现在要不要联系他？', evidence);
+    expect(relationship.details[0]).toMatch(/联系|主动/u);
   });
 });

@@ -19,6 +19,7 @@ import { PAYMENT_PLAN_OPTIONS, formatMoney } from '@/lib/paymentPlans';
 import { normalizeBirthProfileToUtc8, TIMEZONE_OPTIONS } from '@/lib/timezones';
 import type {
   AnswerPayload,
+  ReasoningStep,
   AssetCategory,
   CalendarType,
   GenderOption,
@@ -148,6 +149,69 @@ const renderDebugPanel = (debug?: AnswerPayload['debug']) => {
         <pre className={styles.debugPrompt}>{debug.promptPreview}</pre>
       </div>
     </details>
+  );
+};
+
+const renderReasoningPanel = (
+  status?: 'thinking' | 'streaming' | 'done' | 'error',
+  reasoningSteps?: ReasoningStep[],
+  error?: string
+) => {
+  if (!reasoningSteps || reasoningSteps.length === 0) {
+    return null;
+  }
+
+  const activeStep = reasoningSteps.find((step) => step.status === 'active');
+  const summaryLabel =
+    status === 'error'
+      ? '分析过程中断'
+      : activeStep?.label || (status === 'done' ? '分析过程' : '命理分析中');
+
+  return (
+    <details className={styles.reasoningPanel} open={status !== 'done'}>
+      <summary className={styles.reasoningSummary}>
+        <span>{summaryLabel}</span>
+        {status === 'thinking' || status === 'streaming' ? <span className={styles.reasoningDots} /> : null}
+      </summary>
+      <ul className={styles.reasoningList}>
+        {reasoningSteps.map((step) => (
+          <li key={step.key} className={`${styles.reasoningItem} ${styles[`reasoning${step.status[0].toUpperCase()}${step.status.slice(1)}`]}`}>
+            <span className={styles.reasoningMarker} aria-hidden="true" />
+            <div>
+              <strong>{step.label}</strong>
+              {step.detail ? <p>{step.detail}</p> : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {status === 'error' && error ? <p className={styles.reasoningError}>{error}</p> : null}
+    </details>
+  );
+};
+
+const renderMessageImages = (uploadedAssets?: UserProfileInput['uploadedAssets']) => {
+  if (!uploadedAssets || uploadedAssets.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={styles.messageImageGrid}>
+      {uploadedAssets.map((asset) => (
+        <a
+          key={asset.id}
+          href={asset.url || asset.publicUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.messageImageLink}
+        >
+          <img
+            src={asset.thumbnailUrl || asset.url || asset.publicUrl}
+            alt={asset.fileName}
+            className={styles.messageImage}
+          />
+        </a>
+      ))}
+    </div>
   );
 };
 
@@ -545,6 +609,7 @@ export const FortuneExperience = () => {
     stage,
     isSubmitting,
     isUploadingAssets,
+    pendingAttachments,
     errorMessage,
     freeTurnsRemaining,
     paymentRequired,
@@ -566,7 +631,9 @@ export const FortuneExperience = () => {
     saveProfile,
     updateSavedProfile,
     sendFollowUp,
+    retryAssistantMessage,
     uploadAssetsToConversation,
+    removePendingAttachment,
     checkoutConsultation
   } = useConsultationFlow();
   const [editingProfile, setEditingProfile] = useState<UserProfileInput | null>(null);
@@ -979,7 +1046,11 @@ export const FortuneExperience = () => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
 
-      if (!followUpQuestion.trim() || isSubmitting) {
+      const pendingImageCount = pendingAttachments.filter(
+        (item) => item.status === 'success' && item.uploadedAsset
+      ).length;
+
+      if ((!followUpQuestion.trim() && pendingImageCount === 0) || isSubmitting) {
         return;
       }
 
@@ -1148,27 +1219,71 @@ export const FortuneExperience = () => {
                 </div>
 
                 <div className={styles.messageList} ref={transcriptRef}>
-                  {conversation.map((message, index) => (
+                  {conversation.map((message) => (
                     <article
-                      key={`${message.role}-${index}`}
+                      key={message.id}
                       className={message.role === 'assistant' ? styles.assistantBubble : styles.userBubble}
                     >
                       {message.headline ? <strong>{message.headline}</strong> : null}
-                      <div className={styles.messageContent}>{renderConversationContent(message.content)}</div>
+                      {message.role === 'assistant'
+                        ? renderReasoningPanel(message.status, message.reasoningSteps, message.error)
+                        : null}
+                      {renderMessageImages(message.uploadedAssets)}
+                      {message.content ? (
+                        <div className={styles.messageContent}>{renderConversationContent(message.content)}</div>
+                      ) : message.role === 'assistant' ? (
+                        <div className={styles.messagePending}>命理老师正在整理你的问题。</div>
+                      ) : null}
+                      {message.role === 'assistant' && message.status === 'error' && message.retryable ? (
+                        <button
+                          type="button"
+                          className={styles.retryButton}
+                          onClick={() => retryAssistantMessage(message.id)}
+                          disabled={isSubmitting}
+                        >
+                          重试这次推演
+                        </button>
+                      ) : null}
                       {message.role === 'assistant' ? renderDebugPanel(message.debug) : null}
                     </article>
                   ))}
                 </div>
 
                 <div className={styles.chatComposer}>
-                  {profile.uploadedAssets.length > 0 ? (
-                    <div className={styles.assetSummary}>
-                      已收到 {profile.uploadedAssets.length} 份资料：
-                      {profile.uploadedAssets.map((asset) => asset.fileName).join('、')}
-                    </div>
-                  ) : null}
-
                   <div className={styles.composer}>
+                    {pendingAttachments.length > 0 ? (
+                      <div className={styles.attachmentTray}>
+                        {pendingAttachments.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`${styles.pendingAttachment} ${
+                              item.status === 'error' ? styles.pendingAttachmentError : ''
+                            }`}
+                            title={item.fileName}
+                          >
+                            <img src={item.previewUrl} alt={item.fileName} className={styles.pendingAttachmentImage} />
+                            {item.status === 'uploading' ? (
+                              <span className={styles.pendingAttachmentBadge}>上传中</span>
+                            ) : item.status === 'error' ? (
+                              <span className={styles.pendingAttachmentBadge}>失败</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              className={styles.pendingAttachmentRemove}
+                              onClick={() => {
+                                void removePendingAttachment(item.id);
+                              }}
+                              disabled={isUploadingAssets && item.status === 'uploading'}
+                              aria-label={`移除 ${item.fileName}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className={styles.inputRow}>
                     <label
                       className={`${styles.attachButton} ${
                         isUploadingAssets ? styles.attachButtonBusy : ''
@@ -1202,13 +1317,7 @@ export const FortuneExperience = () => {
                       onChange={(event) => setFollowUpQuestion(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
                       className={styles.composerInput}
-                      placeholder={
-                        requestedAssetCategory
-                          ? '老师刚刚让你补资料，上传后也可以继续追问。'
-                          : conversation.length <= 1
-                            ? '有问题，尽管问。'
-                            : '继续追问。'
-                      }
+                      placeholder="请输入问题，命理大师会据您的八字给出建议"
                       disabled={isSubmitting}
                     />
 
@@ -1216,7 +1325,9 @@ export const FortuneExperience = () => {
                       type="button"
                       className={styles.sendButton}
                       disabled={isSubmitting}
-                      onClick={sendFollowUp}
+                      onClick={() => {
+                        void sendFollowUp();
+                      }}
                       aria-label="发送"
                       title="发送"
                     >
@@ -1224,6 +1335,7 @@ export const FortuneExperience = () => {
                         <path d="M5 12h11M12 5l7 7-7 7" />
                       </svg>
                     </button>
+                    </div>
                   </div>
 
                   {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}

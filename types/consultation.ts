@@ -29,6 +29,8 @@ export interface UploadedAsset {
   mimeType: string;
   filePath: string;
   publicUrl: string;
+  url: string;
+  thumbnailUrl?: string;
   size: number;
   category: AssetCategory;
   uploadedAt: string;
@@ -119,10 +121,86 @@ export interface AnswerPayload {
         reason?: string;
       };
     }>;
+    sceneType?: string;
+    strategy?: {
+      primarySource: 'image' | 'metaphysics' | 'rag';
+      weights: {
+        image: number;
+        metaphysics: number;
+        rag: number;
+      };
+      reasoningMode: string;
+    };
+    imageUsed?: boolean;
+    primarySource?: 'image' | 'metaphysics' | 'rag';
+    imageAnalysis?: {
+      overallSummary: string;
+      imageSummaries: Array<{
+        imageId: string;
+        fileName: string;
+        category: string;
+        summary: string;
+        spatialHints: string[];
+        structured: Record<string, unknown>;
+      }>;
+    };
     promptPreview: string;
     modelOutput?: Record<string, unknown>;
   };
 }
+
+export type AssistantMessageStatus = 'thinking' | 'streaming' | 'done' | 'error';
+
+export type ReasoningStepStatus = 'pending' | 'active' | 'done' | 'error';
+
+export type ConsultationStageKey =
+  | 'loading_profile'
+  | 'normalizing_time'
+  | 'generating_bazi'
+  | 'retrieving_docs'
+  | 'building_prompt'
+  | 'calling_llm'
+  | 'generating_answer';
+
+export interface ReasoningStep {
+  key: ConsultationStageKey;
+  label: string;
+  status: ReasoningStepStatus;
+  detail?: string;
+}
+
+export interface ConsultationStageEvent {
+  key: ConsultationStageKey;
+  label: string;
+  detail?: string;
+}
+
+export type ConsultationStreamEvent =
+  | {
+      type: 'stage';
+      stage: ConsultationStageEvent;
+    }
+  | {
+      type: 'answer';
+      answer: AnswerPayload;
+      paymentRequired?: boolean;
+      requiresRegistrationForPayment?: boolean;
+      freeTurnsRemaining?: number;
+      paid?: boolean;
+    }
+  | {
+      type: 'delta';
+      delta: string;
+    }
+  | {
+      type: 'done';
+    }
+  | {
+      type: 'error';
+      error: string;
+      details?: Record<string, unknown> | null;
+      status?: number;
+    };
 
 export interface ConsultationReport {
   summary: string;
@@ -163,6 +241,7 @@ export interface ConsultationMessage {
   content: string;
   createdAt: string;
   evidence: KnowledgeEvidence[];
+  uploadedAssets?: UploadedAsset[];
   debug?: AnswerPayload['debug'];
 }
 
@@ -186,11 +265,13 @@ export interface CreateConsultationInput {
 }
 
 export interface PreviewConsultationInput {
-  question: string;
+  question?: string;
+  images?: UploadedAsset[];
 }
 
 export interface ChatInput {
-  message: string;
+  message?: string;
+  images?: UploadedAsset[];
 }
 
 export interface AttachAssetsInput {

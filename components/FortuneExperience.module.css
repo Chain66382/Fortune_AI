@@ -644,6 +644,31 @@
   max-width: 760px;
 }
 
+.messagePending {
+  color: rgba(247, 239, 227, 0.68);
+  line-height: 1.65;
+}
+
+.messageImageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 120px));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.messageImageLink {
+  display: block;
+}
+
+.messageImage {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(244, 226, 198, 0.12);
+  background: rgba(11, 9, 7, 0.34);
+}
+
 .messageSection {
   margin-bottom: 14px;
 }
@@ -680,6 +705,92 @@
 
 .messageListItems li + li {
   margin-top: 8px;
+}
+
+.reasoningPanel {
+  margin-bottom: 14px;
+  border: 1px solid rgba(214, 180, 116, 0.16);
+  border-radius: 14px;
+  background: rgba(214, 180, 116, 0.06);
+  padding: 10px 12px;
+}
+
+.reasoningSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: rgba(247, 239, 227, 0.92);
+  font-size: 0.9rem;
+}
+
+.reasoningDots {
+  width: 18px;
+  height: 6px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(214, 180, 116, 0.95) 0 2px, transparent 2px) left center / 6px 6px repeat-x;
+  animation: reasoningPulse 1.1s linear infinite;
+}
+
+.reasoningList {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reasoningItem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.reasoningItem + .reasoningItem {
+  margin-top: 10px;
+}
+
+.reasoningItem strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.88rem;
+}
+
+.reasoningItem p {
+  margin: 0;
+  color: rgba(247, 239, 227, 0.68);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.reasoningMarker {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgba(247, 239, 227, 0.22);
+  flex: 0 0 auto;
+}
+
+.reasoningPending .reasoningMarker {
+  background: rgba(247, 239, 227, 0.2);
+}
+
+.reasoningActive .reasoningMarker {
+  background: #d6b06f;
+  box-shadow: 0 0 0 4px rgba(214, 176, 111, 0.16);
+}
+
+.reasoningDone .reasoningMarker {
+  background: rgba(102, 181, 137, 0.95);
+}
+
+.reasoningError .reasoningMarker {
+  background: #ff8d7a;
+}
+
+.reasoningError {
+  margin: 12px 0 0;
+  color: #ffb3a6;
+  font-size: 0.84rem;
 }
 
 .debugPanel {
@@ -736,12 +847,82 @@
 
 .composer {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   border: 1px solid rgba(244, 226, 198, 0.1);
-  border-radius: 999px;
+  border-radius: 20px;
   background: rgba(255, 247, 238, 0.05);
-  padding: 6px 8px;
+  padding: 8px;
+}
+
+.attachmentTray {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.pendingAttachment {
+  position: relative;
+  flex: 0 0 auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(244, 226, 198, 0.14);
+  background: rgba(11, 9, 7, 0.38);
+}
+
+.pendingAttachmentError {
+  border-color: rgba(255, 141, 122, 0.42);
+}
+
+.pendingAttachmentImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pendingAttachmentBadge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.72);
+  color: rgba(247, 239, 227, 0.92);
+  padding: 2px 6px;
+  font-size: 0.62rem;
+  line-height: 1.2;
+}
+
+.pendingAttachmentRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.68);
+  color: rgba(247, 239, 227, 0.96);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pendingAttachmentRemove:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .attachButton {
@@ -845,14 +1026,40 @@
   cursor: wait;
 }
 
-.assetSummary {
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-}
-
 .error {
   margin-top: 12px;
   color: #ffb3a6;
+}
+
+.retryButton {
+  margin-top: 12px;
+  border: 1px solid rgba(214, 180, 116, 0.28);
+  border-radius: 999px;
+  background: rgba(214, 180, 116, 0.12);
+  color: var(--cream);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.retryButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@keyframes reasoningPulse {
+  0% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.4;
+    transform: translateX(3px);
+  }
 }
 
 .panelDisclaimer {

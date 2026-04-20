@@ -7,6 +7,8 @@ import { AppError } from '@/services/errors';
 import type { AssetCategory, UploadedAsset } from '@/types/consultation';
 
 const validCategories = new Set<AssetCategory>(['face', 'palm', 'space', 'other']);
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+const supportedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 const findUploadPath = async (assetId: string): Promise<string | null> => {
   const categories = ['face', 'palm', 'space', 'other'];
@@ -30,37 +32,88 @@ const findUploadPath = async (assetId: string): Promise<string | null> => {
 };
 
 export const uploadController = {
-  async uploadFile(request: Request) {
+  async uploadFiles(request: Request) {
     const formData = await request.formData();
     const categoryValue = String(formData.get('category') || 'other') as AssetCategory;
-    const file = formData.get('file');
+    const category = validCategories.has(categoryValue) ? categoryValue : 'other';
+    const directoryPath = path.join(env.uploadDir, category);
+    await ensureDirectory(directoryPath);
+    const files = formData.getAll('files');
+    const fallbackSingleFile = formData.get('file');
+    const normalizedFiles = (
+      files.length > 0 ? files : fallbackSingleFile ? [fallbackSingleFile] : []
+    ).filter((entry): entry is File => entry instanceof File);
+    const clientIds = formData
+      .getAll('clientIds')
+      .map((value) => String(value))
+      .filter(Boolean);
 
-    if (!(file instanceof File)) {
+    if (normalizedFiles.length === 0) {
       throw new AppError('File upload is required.');
     }
 
-    const category = validCategories.has(categoryValue) ? categoryValue : 'other';
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const assetId = createId('asset');
-    const extension = path.extname(file.name) || '.bin';
-    const directoryPath = path.join(env.uploadDir, category);
-    const filePath = path.join(directoryPath, `${assetId}${extension}`);
+    const uploadedAssets: Array<UploadedAsset & { status: 'success'; clientId?: string }> = [];
+    const failedUploads: Array<{
+      clientId?: string;
+      fileName: string;
+      error: string;
+      status: 'error';
+    }> = [];
 
-    await ensureDirectory(directoryPath);
-    await fs.writeFile(filePath, buffer);
+    for (const [index, file] of normalizedFiles.entries()) {
+      const clientId = clientIds[index];
 
-    const uploadedAsset: UploadedAsset = {
-      id: assetId,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      filePath,
-      publicUrl: `/api/uploads/${assetId}`,
-      size: file.size,
-      category,
-      uploadedAt: new Date().toISOString()
-    };
+      try {
+        if (!supportedMimeTypes.has(file.type)) {
+          throw new AppError('图片格式不支持，请上传 JPG、PNG、WebP 或 GIF。');
+        }
 
-    return Response.json(uploadedAsset, { status: 201 });
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+          throw new AppError('图片过大，请上传 10MB 以内的图片。');
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const assetId = createId('asset');
+        const extension = path.extname(file.name) || '.bin';
+        const filePath = path.join(directoryPath, `${assetId}${extension}`);
+
+        await fs.writeFile(filePath, buffer);
+
+        const publicUrl = `/api/uploads/${assetId}`;
+        uploadedAssets.push({
+          id: assetId,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          filePath,
+          publicUrl,
+          url: publicUrl,
+          thumbnailUrl: publicUrl,
+          size: file.size,
+          category,
+          uploadedAt: new Date().toISOString(),
+          status: 'success',
+          clientId
+        });
+      } catch (error) {
+        failedUploads.push({
+          clientId,
+          fileName: file.name,
+          error: error instanceof Error ? error.message : '图片上传失败，请稍后重试。',
+          status: 'error'
+        });
+      }
+    }
+
+    return Response.json(
+      {
+        success: failedUploads.length === 0,
+        files: uploadedAssets,
+        failed: failedUploads
+      },
+      {
+        status: uploadedAssets.length > 0 ? 201 : 400
+      }
+    );
   },
 
   async getUploadedFile(assetId: string) {

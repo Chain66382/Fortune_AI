@@ -25,6 +25,7 @@ import type {
   ConsultationMessage,
   ConsultationRecord,
   ConsultationReplyPayload,
+  ConsultationStageEvent,
   CreateConsultationInput,
   FocusArea,
   OrderIntentInput,
@@ -41,6 +42,22 @@ interface AccessState {
   hasPaidAccess: boolean;
   accessKind: 'none' | 'membership' | 'credits';
 }
+
+interface PreviewGenerationResult {
+  consultationId: string;
+  previewAnswer: ConsultationReplyPayload['answer'];
+  lockedReportOutline?: ConsultationRecord['lockedReportOutline'];
+  evidence: ConsultationMessage['evidence'];
+  freeTurnsRemaining: number;
+  paymentRequired: boolean;
+  requiresRegistrationForPayment: boolean;
+  paid: boolean;
+}
+
+const stageRetrievingDocs: ConsultationStageEvent = {
+  key: 'retrieving_docs',
+  label: '正在检索知识库'
+};
 
 const inferFocusArea = (question: string): FocusArea => {
   const normalizedQuestion = question.toLowerCase();
@@ -82,6 +99,43 @@ const hasActiveMembership = (user?: UserAccountRecord): boolean => {
   }
 
   return new Date(user.membershipExpiresAt).getTime() > Date.now();
+};
+
+const buildQuestionFromImages = (images: ConsultationMessage['uploadedAssets'] = []) => {
+  const categories = Array.from(new Set((images || []).map((image) => image.category)));
+
+  if (categories.includes('space')) {
+    return '请结合我刚上传的这一组空间图片，先做整体布局与风水方向的初步判断。';
+  }
+
+  if (categories.includes('face')) {
+    return '请结合我刚上传的这一组面相图片，先做整体气色与状态方向的辅助判断。';
+  }
+
+  if (categories.includes('palm')) {
+    return '请结合我刚上传的这一组手相图片，先做整体走势的辅助判断。';
+  }
+
+  return '请先根据我刚上传的图片资料做初步判断，并告诉我还需要补充什么。';
+};
+
+const resolveMessageText = (message?: string, images: ConsultationMessage['uploadedAssets'] = []) => {
+  const normalizedMessage = message?.trim() || '';
+
+  if (normalizedMessage) {
+    return normalizedMessage;
+  }
+
+  return buildQuestionFromImages(images);
+};
+
+const validateMessagePayload = (
+  message?: string,
+  images: ConsultationMessage['uploadedAssets'] = []
+) => {
+  if (!message?.trim() && (!images || images.length === 0)) {
+    throw new AppError('请输入问题或先上传图片后再发送。');
+  }
 };
 
 export class ConsultationService {
@@ -327,26 +381,46 @@ export class ConsultationService {
     };
   }
 
-  async generatePreview(id: string, input: PreviewConsultationInput) {
+  private async buildPreviewResponse(
+    id: string,
+    input: PreviewConsultationInput,
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>
+  ): Promise<PreviewGenerationResult> {
     const consultation = await this.getConsultationOrThrow(id);
     const validatedInput = validatePreviewInput(input);
+    validateMessagePayload(validatedInput.question, validatedInput.images);
+    const effectiveQuestion = resolveMessageText(validatedInput.question, validatedInput.images);
+    console.debug('[consultation.preview] payload', {
+      consultationId: id,
+      question: validatedInput.question || '',
+      images: validatedInput.images?.length || 0
+    });
     const nextProfile = {
       ...consultation.profile,
       focusArea:
         consultation.profile.focusArea === 'overall'
-          ? inferFocusArea(validatedInput.question)
+          ? inferFocusArea(effectiveQuestion)
           : consultation.profile.focusArea,
-      currentChallenge: consultation.profile.currentChallenge || validatedInput.question
+      currentChallenge: consultation.profile.currentChallenge || effectiveQuestion
     };
     const consultationForAnswer: ConsultationRecord = {
       ...consultation,
       profile: nextProfile
     };
-    const evidence = await this.knowledgeService.retrieveEvidence(nextProfile, validatedInput.question);
+
+    await onStage?.(stageRetrievingDocs);
+    const evidence = await this.knowledgeService.retrieveEvidence(nextProfile, effectiveQuestion);
+    await onStage?.({
+      ...stageRetrievingDocs,
+      detail: `已命中 ${evidence.length} 条相关资料`
+    });
+
     const previewAnswer = await this.reportService.createPreview(
       consultationForAnswer,
-      validatedInput.question,
-      evidence
+      effectiveQuestion,
+      evidence,
+      onStage,
+      validatedInput.images || []
     );
     const accessState = await this.getAccessStateForUser(consultation.userId);
     const updatedConsultation: ConsultationRecord = {
@@ -354,7 +428,7 @@ export class ConsultationService {
       updatedAt: new Date().toISOString(),
       status: accessState.hasPaidAccess ? 'paid' : 'preview_ready',
       freeTurnsUsed: 1,
-      initialQuestion: validatedInput.question,
+      initialQuestion: effectiveQuestion,
       previewAnswer,
       lockedReportOutline: this.reportService.buildLockedOutlineForConsultation(consultation),
       lastEvidence: evidence
@@ -366,9 +440,10 @@ export class ConsultationService {
       id: createId('message'),
       consultationId: consultation.id,
       role: 'user',
-      content: validatedInput.question,
+      content: validatedInput.question?.trim() || '',
       createdAt: updatedConsultation.updatedAt,
-      evidence: []
+      evidence: [],
+      uploadedAssets: validatedInput.images || []
     };
     const assistantMessage: ConsultationMessage = {
       id: createId('message'),
@@ -394,6 +469,10 @@ export class ConsultationService {
       requiresRegistrationForPayment: !updatedConsultation.userId,
       paid: accessState.hasPaidAccess
     };
+  }
+
+  async generatePreview(id: string, input: PreviewConsultationInput) {
+    return this.buildPreviewResponse(id, input);
   }
 
   async createOrderIntent(id: string, input: OrderIntentInput, demoUnlockAfterIntent: boolean) {
@@ -501,6 +580,14 @@ export class ConsultationService {
   }
 
   async createFollowUpMessage(id: string, input: ChatInput): Promise<ConsultationReplyPayload> {
+    return this.buildFollowUpResponse(id, input);
+  }
+
+  private async buildFollowUpResponse(
+    id: string,
+    input: ChatInput,
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>
+  ): Promise<ConsultationReplyPayload> {
     const consultation = await this.getConsultationOrThrow(id);
 
     if (!consultation.previewAnswer) {
@@ -518,8 +605,26 @@ export class ConsultationService {
     }
 
     const validatedInput = validateChatInput(input);
-    const evidence = await this.knowledgeService.retrieveEvidence(consultation.profile, validatedInput.message);
-    const answer = await this.reportService.createFollowUpAnswer(consultation, validatedInput.message, evidence);
+    validateMessagePayload(validatedInput.message, validatedInput.images);
+    const effectiveMessage = resolveMessageText(validatedInput.message, validatedInput.images);
+    console.debug('[consultation.chat] payload', {
+      consultationId: id,
+      message: validatedInput.message || '',
+      images: validatedInput.images?.length || 0
+    });
+    await onStage?.(stageRetrievingDocs);
+    const evidence = await this.knowledgeService.retrieveEvidence(consultation.profile, effectiveMessage);
+    await onStage?.({
+      ...stageRetrievingDocs,
+      detail: `已命中 ${evidence.length} 条相关资料`
+    });
+    const answer = await this.reportService.createFollowUpAnswer(
+      consultation,
+      effectiveMessage,
+      evidence,
+      onStage,
+      validatedInput.images || []
+    );
     const now = new Date().toISOString();
     const hasConsumedAllFreeTurns = consultation.freeTurnsUsed >= FREE_TURN_LIMIT;
     const nextFreeTurnsUsed = hasConsumedAllFreeTurns
@@ -529,9 +634,10 @@ export class ConsultationService {
       id: createId('message'),
       consultationId: id,
       role: 'user',
-      content: validatedInput.message,
+      content: validatedInput.message?.trim() || '',
       createdAt: now,
-      evidence: []
+      evidence: [],
+      uploadedAssets: validatedInput.images || []
     };
     const assistantMessage: ConsultationMessage = {
       id: createId('message'),
@@ -582,6 +688,22 @@ export class ConsultationService {
     };
   }
 
+  async generatePreviewStream(
+    id: string,
+    input: PreviewConsultationInput,
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>
+  ) {
+    return this.buildPreviewResponse(id, input, onStage);
+  }
+
+  async createFollowUpMessageStream(
+    id: string,
+    input: ChatInput,
+    onStage?: (stage: ConsultationStageEvent) => void | Promise<void>
+  ) {
+    return this.buildFollowUpResponse(id, input, onStage);
+  }
+
   async attachAssets(id: string, input: AttachAssetsInput) {
     const consultation = await this.getConsultationOrThrow(id);
     const validatedInput = validateAttachAssetsInput(input);
@@ -600,6 +722,25 @@ export class ConsultationService {
     };
 
     await this.consultationRepository.upsert(updatedConsultation);
+
+    return {
+      consultationId: id,
+      uploadedAssets: nextAssets
+    };
+  }
+
+  async removeAsset(id: string, assetId: string) {
+    const consultation = await this.getConsultationOrThrow(id);
+    const nextAssets = consultation.profile.uploadedAssets.filter((asset) => asset.id !== assetId);
+
+    await this.consultationRepository.upsert({
+      ...consultation,
+      updatedAt: new Date().toISOString(),
+      profile: {
+        ...consultation.profile,
+        uploadedAssets: nextAssets
+      }
+    });
 
     return {
       consultationId: id,

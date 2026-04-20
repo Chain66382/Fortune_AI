@@ -8,6 +8,7 @@ interface MessageRow {
   headline: string | null;
   content: string;
   evidence_json: string;
+  uploaded_assets_json: string | null;
   debug_json: string | null;
   created_at: string;
 }
@@ -24,6 +25,7 @@ export class MessageRepository {
       content: row.content,
       createdAt: row.created_at,
       evidence: JSON.parse(row.evidence_json),
+      uploadedAssets: row.uploaded_assets_json ? JSON.parse(row.uploaded_assets_json) : undefined,
       debug: row.debug_json ? JSON.parse(row.debug_json) : undefined
     };
   }
@@ -32,8 +34,8 @@ export class MessageRepository {
     this.db
       .prepare(
         `
-        INSERT INTO messages (id, consultation_id, role, headline, content, evidence_json, debug_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (id, consultation_id, role, headline, content, evidence_json, uploaded_assets_json, debug_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       )
       .run(
@@ -43,6 +45,7 @@ export class MessageRepository {
         record.headline || null,
         record.content,
         JSON.stringify(record.evidence),
+        record.uploadedAssets ? JSON.stringify(record.uploadedAssets) : null,
         record.debug ? JSON.stringify(record.debug) : null,
         record.createdAt
       );

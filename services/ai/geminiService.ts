@@ -1,5 +1,6 @@
 import { env } from '@/lib/env';
 import type { KnowledgeEvidence } from '@/types/knowledge';
+import type { StructuredImageAnalysis } from '@/services/metaphysics-rag/types';
 
 interface GeminiGenerateOptions {
   model?: string;
@@ -9,6 +10,10 @@ interface GeminiGenerateOptions {
     fileName: string;
     base64Data: string;
   };
+  imageData?: Array<{
+    mimeType: string;
+    base64Data: string;
+  }>;
 }
 
 interface FortuneAnswerShape {
@@ -25,6 +30,16 @@ interface FortuneReportShape {
     content: string;
   }>;
   actionItems: string[];
+}
+
+interface MultimodalGenerateOptions {
+  model?: string;
+  prompt: string;
+  responseMimeType?: 'application/json' | 'text/plain';
+  imageData: Array<{
+    mimeType: string;
+    base64Data: string;
+  }>;
 }
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -110,6 +125,21 @@ export class GeminiService {
   }
 
   private async generateWithOpenAiCompat(options: GeminiGenerateOptions): Promise<string> {
+    const userContent = options.imageData?.length
+      ? [
+          {
+            type: 'text',
+            text: options.prompt
+          },
+          ...options.imageData.map((image) => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${image.mimeType};base64,${image.base64Data}`
+            }
+          }))
+        ]
+      : options.prompt;
+
     const response = await fetch(env.aiCompatBaseUrl, {
       method: 'POST',
       headers: {
@@ -126,7 +156,7 @@ export class GeminiService {
           },
           {
             role: 'user',
-            content: options.prompt
+            content: userContent
           }
         ],
         temperature: 0.7
@@ -153,6 +183,14 @@ export class GeminiService {
           role: 'user',
           parts: [
             { text: options.prompt },
+            ...(options.imageData
+              ? options.imageData.map((image) => ({
+                  inlineData: {
+                    mimeType: image.mimeType,
+                    data: image.base64Data
+                  }
+                }))
+              : []),
             ...(options.pdfData
               ? [
                   {
@@ -281,5 +319,27 @@ export class GeminiService {
         base64Data
       }
     });
+  }
+
+  async analyzeImages(
+    prompt: string,
+    imageData: MultimodalGenerateOptions['imageData'],
+    fallbackFactory: () => StructuredImageAnalysis
+  ): Promise<StructuredImageAnalysis> {
+    if (!this.isEnabled() || imageData.length === 0) {
+      return fallbackFactory();
+    }
+
+    try {
+      const raw = await this.generate({
+        prompt,
+        responseMimeType: 'application/json',
+        imageData
+      });
+      return safeJsonParse<StructuredImageAnalysis>(raw) || fallbackFactory();
+    } catch (error) {
+      console.error(error);
+      return fallbackFactory();
+    }
   }
 }

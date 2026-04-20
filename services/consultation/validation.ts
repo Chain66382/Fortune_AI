@@ -128,7 +128,8 @@ export const validateCreateConsultation = (
 };
 
 export const validatePreviewInput = (input: PreviewConsultationInput): PreviewConsultationInput => ({
-  question: requireTrimmed(input.question, 'Question', 8)
+  question: input.question?.trim(),
+  images: input.images || []
 });
 
 export const validateOrderIntentInput = (input: OrderIntentInput): OrderIntentInput => ({
@@ -138,7 +139,8 @@ export const validateOrderIntentInput = (input: OrderIntentInput): OrderIntentIn
 });
 
 export const validateChatInput = (input: ChatInput): ChatInput => ({
-  message: requireTrimmed(input.message, 'Message', 2)
+  message: input.message?.trim(),
+  images: input.images || []
 });
 
 export const validateAttachAssetsInput = (input: AttachAssetsInput): AttachAssetsInput => {
